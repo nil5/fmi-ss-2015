@@ -529,7 +529,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 		public boolean close(){
 			Log.v(TAG, "Trying to close BluetoothServerSocket");
 			try {
-				// BluetoothServerSocket schlieﬂen
+				// BluetoothServerSocket schliessen
 				serverSocket.close();
 				Log.v(TAG, "BluetoothServerSocket closed successfully");
 				
@@ -540,7 +540,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 				}
 				return true;
 			} catch (IOException e) {
-				// Fehler beim schlieﬂen des BluetoothServerSockets
+				// Fehler beim schliessen des BluetoothServerSockets
 				Log.e(TAG, "Exception was thrown while trying to close BluetoothServerSocket: " + e.getMessage());
 				return false;
 			} catch (NullPointerException e) {
@@ -558,7 +558,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 			super.run();
 			Log.v(TAG, "BluetoothServerThread running.");
 			
-			// Auf Verbindungsger‰t warten (maximal 30 Sekunden)
+			// Auf Verbindungsgeraet warten (maximal 30 Sekunden)
 			BluetoothSocket socket = null;
 			Log.v(TAG, "Waiting for client connection...");
 			while (isRunning()) {
@@ -591,7 +591,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 	            }
 			}
 			
-			// BluetoothServerSocket schlieﬂen
+			// BluetoothServerSocket schliessen
 			close();
 			
 			// Listener benachrichtigen
@@ -652,7 +652,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 			Log.v(TAG, "Trying to close BluetoothSocket");
 			
 			try {
-				// BluetoothSocket schlieﬂen
+				// BluetoothSocket schliessen
 				if(!connected){
 					socket.close();
 					Log.v(TAG, "BluetoothSocket closed successfully");
@@ -665,7 +665,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 				}
 				return true;
 			} catch (IOException e) {
-				// Fehler beim schlieﬂen des BluetoothSockets
+				// Fehler beim Schliessen des BluetoothSockets
 				Log.e(TAG, "Exception was thrown while trying to close BluetoothSocket: " + e.getMessage());
 				return false;
 			} catch (NullPointerException e) {
@@ -742,7 +742,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 			
 			BluetoothActivity.setBluetoothMessageThread(this);
 			
-			// Tempor‰re Variablen um sicherzugehen, dass finale Variablen initialisiert werden
+			// Temporaere Variablen um sicherzugehen, dass finale Variablen initialisiert werden
 	    	InputStream tmpIn = null;
 	    	OutputStream tmpOut = null;
 	    	Log.v(TAG, "Trying to get Input- and OutputStream.");
@@ -781,14 +781,14 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 		public boolean close(){
 			Log.v(TAG, "Trying to close BluetoothSocket");
 			try {
-				// In- und OutputStream sowie ServerSocket schlieﬂen
+				// In- und OutputStream sowie ServerSocket schliessen
 				in.close();
 				out.close();
 				socket.close();
 				Log.v(TAG, "BluetoothSocket successfully closed");
 				return true;
 			} catch (IOException e) {
-				// Fehler beim schlieﬂen einer Komponenten
+				// Fehler beim Schliessen einer Komponenten
 				Log.e(TAG, "Exception was thrown while trying to close BluetoothSocket: " + e.getMessage());
 				return false;
 			} catch (NullPointerException e){
@@ -807,7 +807,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 			byte[] buffer = new byte[1024];
 			int bytes;
 			
-			// Auf Nachrichten von Verbindungsger‰t warten
+			// Auf Nachrichten von Verbindungsgeraet warten
 			Log.v(TAG, "Waiting for messages...");
 			while(isRunning()){
 				try{
@@ -833,7 +833,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 				}
 			}
 			
-			// Komponenten schlieﬂen
+			// Komponenten schliessen
 			close();
 			
 			// Listener benachrichtigen
