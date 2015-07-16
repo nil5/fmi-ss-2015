@@ -18,6 +18,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -28,16 +29,21 @@ public class TestActivity extends DefaultActivity {
     public static final String TAG = "TestActivity";
     public static final String MIME_TEXT_PLAIN = "text/plain";
 
+    private NfcAdapter nfcAdapter;
+    private PendingIntent pendingIntent;
+    private IntentFilter writeTagFilters[];
     private EditText editText;
+    private TextView textView;
     private Button button;
     private Tag mytag;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate");
+
         setContentView(R.layout.activity_test);
 
-        NfcAdapter nfcAdapter;
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
         if (nfcAdapter == null) {
@@ -54,6 +60,7 @@ public class TestActivity extends DefaultActivity {
         }
 
         editText = (EditText) findViewById(R.id.test_text1);
+        textView = (TextView) findViewById(R.id.test_view1);
         button = (Button) findViewById(R.id.test_button1);
 
         button.setOnClickListener(new View.OnClickListener() {
@@ -76,10 +83,10 @@ public class TestActivity extends DefaultActivity {
             }
         });
 
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
-        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
-        tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        IntentFilter writeTagFilters[] = new IntentFilter[] { tagDetected };
+        pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP), 0);
+        IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
+        ndefDetected.addCategory(Intent.CATEGORY_DEFAULT);
+        writeTagFilters = new IntentFilter[]{ndefDetected};
     }
 
     @Override
@@ -88,9 +95,17 @@ public class TestActivity extends DefaultActivity {
 
         Log.d(TAG, "onResume");
 
+        nfcAdapter.enableForegroundDispatch(this, pendingIntent, writeTagFilters, null);
+        handleIntent(getIntent());
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
 
-       // handleIntent(getIntent());
+        Log.d(TAG, "onPause");
+
+        if(nfcAdapter != null) nfcAdapter.disableForegroundDispatch(this);
     }
 
     private NdefRecord createRecord(String text) throws UnsupportedEncodingException {
@@ -124,18 +139,27 @@ public class TestActivity extends DefaultActivity {
 
     @Override
     protected void onNewIntent(Intent intent) {
-        //handleIntent(intent);
-        Log.d(TAG, "Action: " + intent.getAction());
-        if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())){
-            mytag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            Toast.makeText(this, "Tag detagted: " + mytag.toString(), Toast.LENGTH_LONG ).show();
-        }
+        handleIntent(intent);
     }
 
     private void handleIntent(Intent intent){
         String action = intent.getAction();
-        Log.d(TAG, "Action: " + action + "(" + NfcAdapter.ACTION_NDEF_DISCOVERED + ", " + NfcAdapter.ACTION_TECH_DISCOVERED + ", " + NfcAdapter.ACTION_TAG_DISCOVERED + ")");
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
+        Log.d(TAG, "Action: " + action);
+
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+            Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
+            if (rawMsgs != null) {
+                NdefMessage msgs[] = new NdefMessage[rawMsgs.length];
+                textView.setText("");
+                for (int i = 0; i < rawMsgs.length; i++) {
+                    msgs[i] = (NdefMessage) rawMsgs[i];
+                    NdefRecord records[] = msgs[i].getRecords();
+
+                    textView.append(new String(records[0].getPayload()));
+                }
+            }
+        }
+        /*if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
             Log.d(TAG, "NDEF discvored!");
 
             String type = intent.getType();
@@ -160,6 +184,12 @@ public class TestActivity extends DefaultActivity {
                     break;
                 }
             }
+        }*/
+
+        else if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())){
+            mytag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            textView.setText(mytag.toString());
+            Toast.makeText(this, "OK: " + mytag.toString(), Toast.LENGTH_LONG ).show();
         }
     }
 

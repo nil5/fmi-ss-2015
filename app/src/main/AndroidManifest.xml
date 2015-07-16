@@ -28,14 +28,8 @@
             android:label="@string/title_activity_test" >
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-
+                <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain" />
-
-                <meta-data
-                    android:name="android.nfc.action.NDEF_DISCOVERED"
-                    android:resource="@xml/nfc_tech_filter" />
             </intent-filter>
         </activity>
     </application>
