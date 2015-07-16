@@ -7,5 +7,21 @@
     tools:context="de.thm.nfcmemory.TestActivity">
 
 
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/test_text1"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New Button"
+        android:id="@+id/test_button1"
+        android:layout_below="@+id/test_text1"
+        android:layout_centerHorizontal="true" />
 </RelativeLayout>

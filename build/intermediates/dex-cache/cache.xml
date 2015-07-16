@@ -9,18 +9,18 @@
         <dex dex="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\pre-dexed\debug\classes-d2b9489ca22a283dad7d46d17a0c90c8bb4078a1.jar" />
     </item>
     <item
-        jar="D:\Programme\ADT Bundle v23\sdk\extras\android\m2repository\com\android\support\support-annotations\22.2.0\support-annotations-22.2.0.jar"
-        jumboMode="false"
-        revision="20.0.0"
-        sha1="66b42a1f3eb7676070b7ef7f14b603483aecbee1">
-        <dex dex="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\pre-dexed\debug\support-annotations-22.2.0-e00cef7257db26ac83e6fb2fb3ac82e7dc71888c.jar" />
-    </item>
-    <item
         jar="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\exploded-aar\com.android.support\appcompat-v7\22.2.0\jars\classes.jar"
         jumboMode="false"
         revision="20.0.0"
         sha1="73753982da6bde518f3a4c6b372749981d14d1a0">
         <dex dex="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\pre-dexed\debug\classes-1a1bfb1663e1b1b81b51e48739d1fa04a94aa4f6.jar" />
+    </item>
+    <item
+        jar="D:\Programme\ADT Bundle v23\sdk\extras\android\m2repository\com\android\support\support-annotations\22.2.0\support-annotations-22.2.0.jar"
+        jumboMode="false"
+        revision="20.0.0"
+        sha1="66b42a1f3eb7676070b7ef7f14b603483aecbee1">
+        <dex dex="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\pre-dexed\debug\support-annotations-22.2.0-e00cef7257db26ac83e6fb2fb3ac82e7dc71888c.jar" />
     </item>
     <item
         jar="D:\Daten\Programme\AndroidStudio\NFCMemory\app\build\intermediates\exploded-aar\com.android.support\support-v4\22.2.0\jars\libs\internal_impl-22.2.0.jar"
