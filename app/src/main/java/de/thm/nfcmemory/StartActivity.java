@@ -35,6 +35,9 @@ public class StartActivity extends DefaultActivity {
         } else if(id == R.id.action_test) {
             Intent intent = new Intent(this, TestActivity.class);
             startActivity(intent);
+        } else if(id == R.id.action_spiel) {
+            Intent intent = new Intent(this, GameActivity.class);
+            startActivity(intent);
         }
 
         return super.onOptionsItemSelected(item);

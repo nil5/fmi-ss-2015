@@ -6,4 +6,5 @@
     <string name="label_name">Name</string>
     <string name="input_name">Trage deinen Namen ein</string>
     <string name="title_activity_test">TestActivity</string>
+    <string name="title_activity_game">GameActivity</string>
 </resources>

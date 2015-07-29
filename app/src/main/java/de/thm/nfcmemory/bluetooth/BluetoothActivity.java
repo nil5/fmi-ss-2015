@@ -54,7 +54,7 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 	private static final ArrayList<BluetoothPowerStateListener> BLUETOOTH_POWER_STATE_LISTENERS = new ArrayList<BluetoothPowerStateListener>();
 	private static final ArrayList<BluetoothVisibilityListener> BLUETOOTH_VISIBILITY_LISTENERS = new ArrayList<BluetoothVisibilityListener>();
 	
-	private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); // has to be the same on remote device
+	private static final UUID MY_UUID = UUID.fromString("13090cf0-ef08-4ba4-8da1-601be709046a"); // has to be the same on remote device
 	private static final Handler UI_HANDLER = new Handler(Looper.getMainLooper());
 	
 	private static BluetoothActivity activity;
@@ -815,10 +815,10 @@ public class BluetoothActivity extends DefaultActivity implements ThreadStateLis
 					bytes = in.read(buffer);
 					Log.v(TAG, "Message recieved. Informing Handler.");
 					
-					final int what = Integer.valueOf(new String(buffer, 0, bytes));
+					final String what = new String(buffer, 0, bytes);
 					
 					// Message aus InputStream erstellen und an Handler weiterleiten
-					messageHandler.obtainMessage(what).sendToTarget();
+					messageHandler.obtainMessage(1, what).sendToTarget();
 					Log.v(TAG, "Handler successfully informed");
 				} catch (IOException e){
 					// Fehler beim Lesen des InputStreams
