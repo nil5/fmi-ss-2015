@@ -1,6 +1,7 @@
 package de.thm.nfcmemory;
 
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.nfc.FormatException;
@@ -23,6 +24,9 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+
+import java.nio.charset.Charset;
+import android.nfc.tech.NdefFormatable;
 
 
 public class TestActivity extends DefaultActivity {
@@ -67,26 +71,29 @@ public class TestActivity extends DefaultActivity {
             @Override
             public void onClick(View v) {
                 try {
-                    if(mytag==null){
-                        Toast.makeText(TestActivity.this, "Fehler", Toast.LENGTH_LONG ).show();
-                    }else{
+                    if (mytag == null) {
+                        Toast.makeText(TestActivity.this, "Fehler", Toast.LENGTH_LONG).show();
+                    } else {
                         write(editText.getText().toString(), mytag);
-                        Toast.makeText(TestActivity.this, "Schreibe...", Toast.LENGTH_LONG ).show();
+                        Toast.makeText(TestActivity.this, "Erfolgreich beschrieben", Toast.LENGTH_LONG).show();
                     }
                 } catch (IOException e) {
-                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben", Toast.LENGTH_LONG ).show();
+                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben", Toast.LENGTH_LONG).show();
                     e.printStackTrace();
                 } catch (FormatException e) {
-                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben" , Toast.LENGTH_LONG ).show();
+                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben", Toast.LENGTH_LONG).show();
                     e.printStackTrace();
                 }
             }
         });
 
         pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP), 0);
+
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
         ndefDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        writeTagFilters = new IntentFilter[]{ndefDetected};
+        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
+        tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
+        writeTagFilters = new IntentFilter[]{ndefDetected, tagDetected};
     }
 
     @Override
@@ -97,6 +104,7 @@ public class TestActivity extends DefaultActivity {
 
         nfcAdapter.enableForegroundDispatch(this, pendingIntent, writeTagFilters, null);
         handleIntent(getIntent());
+
     }
 
     @Override
@@ -139,14 +147,12 @@ public class TestActivity extends DefaultActivity {
 
     @Override
     protected void onNewIntent(Intent intent) {
-        handleIntent(intent);
+      handleIntent(intent);
     }
 
     private void handleIntent(Intent intent){
-        String action = intent.getAction();
-        Log.d(TAG, "Action: " + action);
-
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+        //read
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
             Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
             if (rawMsgs != null) {
                 NdefMessage msgs[] = new NdefMessage[rawMsgs.length];
@@ -158,8 +164,34 @@ public class TestActivity extends DefaultActivity {
                     textView.append(new String(records[0].getPayload()));
                 }
             }
+        } else if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())){
+            mytag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            textView.setText(mytag.toString());
+            Toast.makeText(this, "OK: " + mytag.toString(), Toast.LENGTH_LONG ).show();
         }
-        /*if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
+
+        /*
+
+        if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
+            // validate that this tag can be written....
+            Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            if(supportedTechs(detectedTag.getTechList())) {
+                // check if tag is writable (to the extent that we can
+                if(writableTag(detectedTag)) {
+                    //writeTag here
+                    WriteResponse wr = writeTag(getTagAsNdef(), detectedTag);
+                    String message = (wr.getStatus() == 1? "Success: " : "Failed: ") + wr.getMessage();
+                    Toast.makeText(this,message,Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this,"This tag is not writable",Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this,"This tag type is not supported",Toast.LENGTH_SHORT).show();
+            }
+        }
+        /*
+
+        //if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
             Log.d(TAG, "NDEF discvored!");
 
             String type = intent.getType();
@@ -184,14 +216,138 @@ public class TestActivity extends DefaultActivity {
                     break;
                 }
             }
-        }*/
+        }
 
-        else if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())){
-            mytag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            textView.setText(mytag.toString());
-            Toast.makeText(this, "OK: " + mytag.toString(), Toast.LENGTH_LONG ).show();
+       */
+    }
+
+    /*
+    public WriteResponse writeTag(NdefMessage message, Tag tag) {
+        int size = message.toByteArray().length;
+        String mess = "";
+
+        try {
+            Ndef ndef = Ndef.get(tag);
+            if (ndef != null) {
+                ndef.connect();
+
+                if (!ndef.isWritable()) {
+                    return new WriteResponse(0,"Tag is read-only");
+
+                }
+                if (ndef.getMaxSize() < size) {
+                    mess = "Tag capacity is " + ndef.getMaxSize() + " bytes, message is " + size
+                            + " bytes.";
+                    return new WriteResponse(0,mess);
+                }
+
+                ndef.writeNdefMessage(message);
+                if(writeProtect)  ndef.makeReadOnly();
+                mess = "Wrote message to pre-formatted tag.";
+                return new WriteResponse(1,mess);
+            } else {
+                NdefFormatable format = NdefFormatable.get(tag);
+                if (format != null) {
+                    try {
+                        format.connect();
+                        format.format(message);
+                        mess = "Formatted tag and wrote message";
+                        return new WriteResponse(1,mess);
+                    } catch (IOException e) {
+                        mess = "Failed to format tag.";
+                        return new WriteResponse(0,mess);
+                    }
+                } else {
+                    mess = "Tag doesn't support NDEF.";
+                    return new WriteResponse(0,mess);
+                }
+            }
+        } catch (Exception e) {
+            mess = "Failed to write tag";
+            return new WriteResponse(0,mess);
         }
     }
+
+    private class WriteResponse {
+        int status;
+        String message;
+        WriteResponse(int Status, String Message) {
+            this.status = Status;
+            this.message = Message;
+        }
+        public int getStatus() {
+            return status;
+        }
+        public String getMessage() {
+            return message;
+        }
+    }
+
+    public static boolean supportedTechs(String[] techs) {
+        boolean ultralight=false;
+        boolean nfcA=false;
+        boolean ndef=false;
+        for(String tech:techs) {
+            if(tech.equals("android.nfc.tech.MifareUltralight")) {
+                ultralight=true;
+            }else if(tech.equals("android.nfc.tech.NfcA")) {
+                nfcA=true;
+            } else if(tech.equals("android.nfc.tech.Ndef") || tech.equals("android.nfc.tech.NdefFormatable")) {
+                ndef=true;
+
+            }
+        }
+        if(ultralight && nfcA && ndef) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean writableTag(Tag tag) {
+
+        try {
+            Ndef ndef = Ndef.get(tag);
+            if (ndef != null) {
+                ndef.connect();
+                if (!ndef.isWritable()) {
+                    Toast.makeText(this,"Tag is read-only.",Toast.LENGTH_SHORT).show();
+                    ndef.close();
+                    return false;
+                }
+                ndef.close();
+                return true;
+            }
+        } catch (Exception e) {
+            Toast.makeText(this,"Failed to read tag",Toast.LENGTH_SHORT).show();
+        }
+
+        return false;
+    }
+
+    private NdefMessage getTagAsNdef() {
+        boolean addAAR = false;
+        String uniqueId = "tapwise.com";
+        byte[] uriField = uniqueId.getBytes(Charset.forName("US-ASCII"));
+        byte[] payload = new byte[uriField.length + 1];              //add 1 for the URI Prefix
+        payload[0] = 0x01;
+
+        System.arraycopy(uriField, 0, payload, 1, uriField.length);  //appends URI to payload
+        NdefRecord rtdUriRecord = new NdefRecord(
+                NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_URI, new byte[0], payload);
+
+
+        if(addAAR) {
+            // note:  returns AAR for different app (nfcreadtag)
+            return new NdefMessage(new NdefRecord[] {
+                    rtdUriRecord, NdefRecord.createApplicationRecord("com.tapwise.nfcreadtag")
+            });
+        } else {
+            return new NdefMessage(new NdefRecord[] {
+                    rtdUriRecord});
+        }
+    }
+    */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

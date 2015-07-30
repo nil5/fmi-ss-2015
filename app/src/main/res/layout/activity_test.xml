@@ -20,7 +20,7 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="New Button"
+        android:text="Write to NFC"
         android:id="@+id/test_button1"
         android:layout_below="@+id/test_text1"
         android:layout_centerHorizontal="true" />
@@ -29,7 +29,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Large Text"
+        android:text="NFC Message"
         android:id="@+id/test_view1"
         android:layout_below="@+id/test_button1"
         android:layout_alignParentBottom="true"
@@ -37,4 +37,5 @@
         android:layout_alignParentStart="true"
         android:layout_alignRight="@+id/test_text1"
         android:layout_alignEnd="@+id/test_text1" />
+
 </RelativeLayout>
