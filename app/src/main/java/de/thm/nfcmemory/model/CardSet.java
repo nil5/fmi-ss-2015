@@ -16,7 +16,7 @@ import de.thm.nfcmemory.util.FileName;
 public class CardSet extends ArrayList<Card> {
     private static final boolean D = true;
     private static final String TAG = "CardSet";
-    private static final String SD_FOLDER = "NFCMemory/CardSets";
+    private static final String SD_FOLDER = "/NFCMemory/CardSets";
 
     private String name;
 
@@ -25,7 +25,7 @@ public class CardSet extends ArrayList<Card> {
             throw new IllegalArgumentException("The argument 'name' must neither be null nor an empty string.");
 
         File sd = Environment.getExternalStorageDirectory();
-        File dir = new File(sd, SD_FOLDER + "/" + name);
+        File dir = new File(sd + SD_FOLDER + "/" + name);
 
         if(!dir.exists())
             throw new FileNotFoundException("The directory '" + dir + "' does not exist.");
@@ -36,7 +36,7 @@ public class CardSet extends ArrayList<Card> {
             if(D) Log.d(TAG, "Found file: " + fileName);
             if(!fileName.endsWith("png")) continue;
             if(D) Log.d(TAG, "Creating Bitmap...");
-            add(new Card(FileName.basename(fileName), BitmapFactory.decodeFile(fileName)));
+            add(new Card(FileName.basename(fileName), BitmapFactory.decodeFile(dir + "/" + fileName)));
         }
     }
 }

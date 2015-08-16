@@ -26,16 +26,20 @@
         android:layout_centerHorizontal="true" />
 
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="NFC Message"
         android:id="@+id/test_view1"
-        android:layout_below="@+id/test_button1"
+        android:layout_below="@+id/test_button1" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_alignRight="@+id/test_text1"
-        android:layout_alignEnd="@+id/test_text1" />
+        android:id="@+id/field"
+        android:layout_below="@+id/test_view1">
+
+    </RelativeLayout>
 
 </RelativeLayout>

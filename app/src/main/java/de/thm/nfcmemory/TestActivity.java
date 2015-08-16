@@ -19,14 +19,19 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 import java.nio.charset.Charset;
 import android.nfc.tech.NdefFormatable;
+
+import de.thm.nfcmemory.model.CardSet;
+import de.thm.nfcmemory.model.Field;
 
 
 public class TestActivity extends DefaultActivity {
@@ -40,6 +45,8 @@ public class TestActivity extends DefaultActivity {
     private TextView textView;
     private Button button;
     private Tag mytag;
+    private String techListArray[][];
+    private RelativeLayout fieldLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,13 +94,25 @@ public class TestActivity extends DefaultActivity {
             }
         });
 
-        pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP), 0);
+        pendingIntent = PendingIntent.getActivity(
+                this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
 
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
-        ndefDetected.addCategory(Intent.CATEGORY_DEFAULT);
+
+        try {
+            ndefDetected.addDataType("*/*"); /* Handles all MIME based dispatches. You should specify only the ones that you need. */
+        }
+        catch (IntentFilter.MalformedMimeTypeException e) {
+            throw new RuntimeException("fail", e);
+        }
+
+        //ndefDetected.addCategory(Intent.CATEGORY_DEFAULT);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
-        tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        writeTagFilters = new IntentFilter[]{ndefDetected, tagDetected};
+        //tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
+        writeTagFilters = new IntentFilter[]{ndefDetected, };
+        techListArray = new String[][]{new String[]{Ndef.class.getName()}};
+
+        fieldLayout = (RelativeLayout) findViewById(R.id.field);
     }
 
     @Override
@@ -114,6 +133,18 @@ public class TestActivity extends DefaultActivity {
         Log.d(TAG, "onPause");
 
         if(nfcAdapter != null) nfcAdapter.disableForegroundDispatch(this);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        try {
+            Field field = new Field(new CardSet("nils"));
+            field.print(this, fieldLayout);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private NdefRecord createRecord(String text) throws UnsupportedEncodingException {
@@ -152,6 +183,7 @@ public class TestActivity extends DefaultActivity {
 
     private void handleIntent(Intent intent){
         //read
+        Log.v(TAG, "Action: " + intent.getAction());
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
             Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
             if (rawMsgs != null) {

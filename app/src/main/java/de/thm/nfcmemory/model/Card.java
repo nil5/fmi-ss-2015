@@ -13,4 +13,8 @@ public class Card {
         this.id = id;
         this.src = src;
     }
+
+    public String getId(){
+        return id;
+    }
 }
