@@ -46,6 +46,10 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="de.thm.nfcmemory.StartActivity" />
         </activity>
+        <activity
+            android:name=".MappingActivity"
+            android:label="@string/title_activity_mapping" >
+        </activity>
     </application>
 
 </manifest>

@@ -7,4 +7,6 @@
         android:orderInCategory="100" app:showAsAction="never" />
     <item android:id="@+id/action_spiel" android:title="Spiel"
         android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/action_mapping" android:title="Mapping"
+        android:orderInCategory="100" app:showAsAction="never" />
 </menu>

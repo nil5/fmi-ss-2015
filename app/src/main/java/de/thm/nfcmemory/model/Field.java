@@ -1,8 +1,10 @@
 package de.thm.nfcmemory.model;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -22,11 +24,14 @@ public class Field {
 
     private CardSet cardSet;
     private Card cards[];
+    private TextView views[];
+    private int size;
 
     public Field(CardSet cardSet){
         this.cardSet = cardSet;
     }
 
+    @TargetApi(16)
     public void print(Context context, RelativeLayout container){
         final int startId = 1000;
         final int s = cardSet.size();
@@ -42,7 +47,9 @@ public class Field {
         TextView card;
         LayoutParams params;
 
-        cards = new Card[s * 2];
+        this.size = s * 2;
+        cards = new Card[this.size];
+        views = new TextView[this.size];
 
         for(i = 0; i < s; i++){
             temp = cardSet.get(i);
@@ -53,6 +60,7 @@ public class Field {
         Functions.shuffleCards(cards);
 
         for(i = 0; i < cards.length; i++){
+            final BitmapDrawable drawable = new BitmapDrawable(context.getResources(), cards[i].getSrc());
             id = startId + i;
 
             card = new TextView(context);
@@ -60,6 +68,9 @@ public class Field {
             card.setTextColor(Color.BLACK);
             card.setGravity(Gravity.CENTER);
             card.setId(id);
+            if(NFCMemory.Const.API >= 16)
+                card.setBackground(drawable);
+            else card.setBackgroundDrawable(drawable);
 
             params = new LayoutParams(size, size);
             params.setMargins(padding, padding, 0, 0);
@@ -78,6 +89,16 @@ public class Field {
             card.setLayoutParams(params);
             card.setBackgroundColor(Color.WHITE);
             container.addView(card);
+            views[i] = card;
         }
+    }
+
+    public void setCardColor(int index, String hex){
+        if(views == null || index < 0 || index >= views.length) return;
+        views[index].setBackgroundColor(Color.parseColor(hex));
+    }
+
+    public int getSize(){
+        return size;
     }
 }

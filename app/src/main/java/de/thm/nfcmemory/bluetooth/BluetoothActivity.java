@@ -1,12 +1,5 @@
 package de.thm.nfcmemory.bluetooth;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -20,7 +13,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
-import de.thm.nfcmemory.DefaultActivity;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import de.thm.nfcmemory.NFCActivity;
 import de.thm.nfcmemory.bluetooth.MonitoringThread.ThreadStateListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothConnectionStateListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothDiscoveryListener;
@@ -28,7 +29,7 @@ import de.thm.nfcmemory.bluetooth.listener.BluetoothMessageListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothPowerStateListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothVisibilityListener;
 
-public class BluetoothActivity extends DefaultActivity implements ThreadStateListener {
+public class BluetoothActivity extends NFCActivity implements ThreadStateListener {
 	public static final String CONNECTION_STATE_CHANGED = "connection_state_changed";
 	public static final int STATE_NONE = 0;
 	public static final int STATE_READY = 1;
