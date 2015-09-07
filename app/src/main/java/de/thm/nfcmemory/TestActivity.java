@@ -18,8 +18,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,15 +40,19 @@ public class TestActivity extends DefaultActivity {
     public static final String TAG = "TestActivity";
     public static final String MIME_TEXT_PLAIN = "text/plain";
 
+    public static final int MODE_READ = 1;
+    public static final int MODE_WRITE = 2;
+
     private NfcAdapter nfcAdapter;
     private PendingIntent pendingIntent;
     private IntentFilter writeTagFilters[];
     private EditText editText;
     private TextView textView;
-    private Button button;
+    //private Button button;
     private Tag mytag;
     private String techListArray[][];
     private RelativeLayout fieldLayout;
+    private int mode = MODE_READ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,8 +78,22 @@ public class TestActivity extends DefaultActivity {
 
         editText = (EditText) findViewById(R.id.test_text1);
         textView = (TextView) findViewById(R.id.test_view1);
-        button = (Button) findViewById(R.id.test_button1);
+        Switch modeSwitch = (Switch) findViewById(R.id.test_switch1);
 
+        modeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked){
+                    mode = MODE_WRITE;
+                    Toast.makeText(TestActivity.this, "Write Mode", Toast.LENGTH_SHORT).show();
+                } else {
+                    mode = MODE_READ;
+                    Toast.makeText(TestActivity.this, "Read Mode", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        /*button = (Button) findViewById(R.id.test_button1);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -92,12 +112,13 @@ public class TestActivity extends DefaultActivity {
                     e.printStackTrace();
                 }
             }
-        });
+        });*/
 
         pendingIntent = PendingIntent.getActivity(
                 this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
 
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
+        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
 
         try {
             ndefDetected.addDataType("*/*"); /* Handles all MIME based dispatches. You should specify only the ones that you need. */
@@ -107,9 +128,8 @@ public class TestActivity extends DefaultActivity {
         }
 
         //ndefDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
         //tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        writeTagFilters = new IntentFilter[]{ndefDetected, };
+        writeTagFilters = new IntentFilter[]{ndefDetected, tagDetected, };
         techListArray = new String[][]{new String[]{Ndef.class.getName()}};
 
         fieldLayout = (RelativeLayout) findViewById(R.id.field);
@@ -184,7 +204,41 @@ public class TestActivity extends DefaultActivity {
     private void handleIntent(Intent intent){
         //read
         Log.v(TAG, "Action: " + intent.getAction());
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
+        switch(mode){
+            case MODE_READ:
+                if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
+                    Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
+                    if (rawMsgs != null) {
+                        NdefMessage msgs[] = new NdefMessage[rawMsgs.length];
+                        textView.setText("");
+                        for (int i = 0; i < rawMsgs.length; i++) {
+                            msgs[i] = (NdefMessage) rawMsgs[i];
+                            NdefRecord records[] = msgs[i].getRecords();
+
+                            textView.append(new String(records[0].getPayload()));
+                        }
+                    } else Toast.makeText(this, "Der NDEF-Tag ist leer.", Toast.LENGTH_LONG).show();
+                } else if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
+                    Toast.makeText(this, "Der Tag ist nicht NDEF-formatiert. Beschreiben um zu formatieren.", Toast.LENGTH_LONG).show();
+                }
+                break;
+            case MODE_WRITE:
+                mytag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+                if (mytag == null) {
+                    Toast.makeText(TestActivity.this, "Fehler (Tag ist null)", Toast.LENGTH_LONG).show();
+                } else try {
+                    write(editText.getText().toString(), mytag);
+                    Toast.makeText(TestActivity.this, "Erfolgreich beschrieben", Toast.LENGTH_LONG).show();
+                } catch (IOException e) {
+                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben (IO)", Toast.LENGTH_LONG).show();
+                    e.printStackTrace();
+                } catch (FormatException e) {
+                    Toast.makeText(TestActivity.this, "Fehler beim Schreiben (Format)", Toast.LENGTH_LONG).show();
+                    e.printStackTrace();
+                }
+                break;
+        }
+        /*if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
             Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
             if (rawMsgs != null) {
                 NdefMessage msgs[] = new NdefMessage[rawMsgs.length];

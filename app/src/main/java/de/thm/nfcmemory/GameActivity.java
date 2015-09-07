@@ -1,19 +1,17 @@
 package de.thm.nfcmemory;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.os.Message;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
@@ -21,22 +19,27 @@ import java.util.ArrayList;
 
 import de.thm.nfcmemory.bluetooth.BluetoothActivity;
 import de.thm.nfcmemory.bluetooth.BluetoothConnection;
+import de.thm.nfcmemory.bluetooth.BluetoothMessage;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothConnectionStateListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothDiscoveryListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothMessageListener;
-import de.thm.nfcmemory.bluetooth.listener.BluetoothPowerStateListener;
 import de.thm.nfcmemory.model.adapter.BluetoothDeviceListAdapter;
 
 
-public class GameActivity extends BluetoothActivity {
+public class GameActivity extends BluetoothActivity implements BluetoothDiscoveryListener, BluetoothConnectionStateListener {
+    public static final String TAG = "GameActivity";
 
-    private ArrayList<BluetoothDevice> bluetoothDevices;
     private ListView bluetoothDeviceList;
     private BluetoothDeviceListAdapter bluetoothDeviceListAdapter;
     private BluetoothDevice selectedDevice = null;
     private ViewFlipper flipper;
+    private TextView lobbyStatus;
+    private Button joinGame;
+    private ProgressBar joinGameProgress;
+    private Button hostGame;
+    private ProgressBar hostGameProgress;
+    private Button startGame;
     private boolean flipped = false;
-    private int messageSentCounter = 0;
     private int messageReceivedCounter = 0;
 
     @Override
@@ -44,39 +47,36 @@ public class GameActivity extends BluetoothActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
 
-        bluetoothDevices = new ArrayList<BluetoothDevice>();
+        final ArrayList<BluetoothDevice> bluetoothDevices = new ArrayList<>();
         bluetoothDeviceListAdapter = new BluetoothDeviceListAdapter(this, bluetoothDevices);
 
         bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
         flipper = (ViewFlipper) findViewById(R.id.game_flipper);
 
-        final Button startGame = (Button) findViewById(R.id.game_start);
+        lobbyStatus = (TextView) findViewById(R.id.game_lobby_status);
+        joinGame = (Button) findViewById(R.id.game_join);
+        joinGameProgress = (ProgressBar) findViewById(R.id.game_join_progress);
+        hostGame = (Button) findViewById(R.id.game_host);
+        hostGameProgress = (ProgressBar) findViewById(R.id.game_host_progress);
+        startGame = (Button) findViewById(R.id.game_start);
+
         final Button sendMessage = (Button) findViewById(R.id.game_test_message);
-        final ImageButton serveGame = (ImageButton) findViewById(R.id.game_serve);
+        final TextView lobbyHost = (TextView) findViewById(R.id.game_versus_host);
+        final TextView lobbyClient = (TextView) findViewById(R.id.game_versus_client);
 
         bluetoothDeviceList.setAdapter(bluetoothDeviceListAdapter);
         bluetoothDeviceList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 selectedDevice = bluetoothDeviceListAdapter.get(position);
-            }
-        });
 
-        startGame.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (selectedDevice == null) {
-                    Toast.makeText(GameActivity.this, "Not connected to other device.", Toast.LENGTH_LONG).show();
-                    return;
-                } else if (getState() != STATE_CONNECTED) {
-
-                }
-
+                joinGame.setEnabled(false);
+                joinGameProgress.setVisibility(View.VISIBLE);
+                bluetoothDeviceList.setEnabled(false);
                 new BluetoothConnection(GameActivity.this, selectedDevice.getAddress()) {
                     @Override
                     public void onConnectionEstablished() {
-                        flipper.showNext();
-                        flipped = true;
+
                     }
 
                     @Override
@@ -92,10 +92,39 @@ public class GameActivity extends BluetoothActivity {
             }
         });
 
-        serveGame.setOnClickListener(new View.OnClickListener() {
+        startGame.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                serve("NFC Memory", true);
+                if (getState() != STATE_CONNECTED) {
+                    Toast.makeText(GameActivity.this, "Not connected to other device.", Toast.LENGTH_LONG).show();
+                } else send(BluetoothMessage.START);
+            }
+        });
+
+        hostGame.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                serve("NFC Memory", true); // TODO: Insert game name
+                makeDiscoverable();
+                bluetoothDeviceListAdapter.clear();
+                joinGame.setEnabled(false);
+                hostGame.setEnabled(false);
+                hostGameProgress.setVisibility(View.VISIBLE);
+                lobbyHost.setText("Player1"); // TODO: Insert player name
+                lobbyStatus.setText("Waiting for client...");
+            }
+        });
+
+        joinGame.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                discover();
+                bluetoothDeviceListAdapter.clear();
+                joinGame.setEnabled(false);
+                hostGame.setEnabled(false);
+                joinGameProgress.setVisibility(View.VISIBLE);
+                lobbyClient.setText("Player2"); // TODO: Insert player name
+                lobbyStatus.setText("Searching for nearby hosted games...");
             }
         });
 
@@ -103,16 +132,26 @@ public class GameActivity extends BluetoothActivity {
             @Override
             public void onClick(View v) {
                 send("Hello");
-                messageSentCounter++;
             }
         });
 
         addBluetoothMessageListener(new BluetoothMessageListener() {
             @Override
             public void onMessageRecieved(Message msg) {
-                if(!flipped){
-                    flipper.showNext();
-                    flipped = true;
+                String m = (String) msg.obj;
+                Log.v(TAG, "Msg: " + m);
+
+                try{
+                    byte b = Byte.valueOf(m);
+                    // Message is Byte-Message
+                    if(b == BluetoothMessage.START && !flipped){
+                        flipper.showNext();
+                        flipped = true;
+                        send(BluetoothMessage.START);
+                    }
+                } catch(NumberFormatException e){
+                    // Message is String-Message
+                    // TODO
                 }
 
                 sendMessage.setText("Nachricht senden (empfangen: " + ++messageReceivedCounter + ")");
@@ -122,6 +161,9 @@ public class GameActivity extends BluetoothActivity {
         if(!bluetoothSupport()){
             Toast.makeText(this, "Can not create game. Your device doesn't support Bluetooth technology.", Toast.LENGTH_LONG).show();
         }
+
+        addBluetoothDiscoveryListener(this);
+        addBluetoothConnectionStateListener(this);
     }
 
     @Override
@@ -130,34 +172,7 @@ public class GameActivity extends BluetoothActivity {
 
         if(!bluetoothEnabled()){
             enable(true);
-        } else discover();
-
-        addBluetoothDiscoveryListener(new BluetoothDiscoveryListener() {
-            @Override
-            public void onDiscoveryStart() {
-
-            }
-
-            @Override
-            public void onDeviceFound(BluetoothDevice device) {
-                Log.v("GameActivity", "Device found.");
-                bluetoothDeviceListAdapter.add(device);
-            }
-
-            @Override
-            public void onDiscoveryFinished() {
-
-            }
-        });
-
-        addBluetoothPowerStateListener(new BluetoothPowerStateListener() {
-            @Override
-            public void onPowerStateChanged(int state) {
-                if (state == BluetoothAdapter.STATE_ON) {
-                    discover();
-                }
-            }
-        });
+        }
     }
 
     @Override
@@ -180,5 +195,45 @@ public class GameActivity extends BluetoothActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onDiscoveryStart() {
+        lobbyStatus.setText("Searching...: 0 hosted games found");
+        startGame.setEnabled(false);
+    }
+
+    @Override
+    public void onDeviceFound(BluetoothDevice device) {
+        bluetoothDeviceListAdapter.add(device);
+        lobbyStatus.setText("Searching...: " + bluetoothDeviceListAdapter.getCount() + " hosted games found");
+    }
+
+    @Override
+    public void onDiscoveryFinished() {
+        joinGame.setEnabled(true);
+        hostGame.setEnabled(true);
+        joinGameProgress.setVisibility(View.INVISIBLE);
+        if(bluetoothDeviceListAdapter.isEmpty()) {
+            lobbyStatus.setText("Sorry, no game was found.");
+        } else {
+            lobbyStatus.setText("Please select a game from the list below.");
+        }
+    }
+
+    @Override
+    public void onConnectionStateChanged(int oldState, int newState, int stateChangedCount) {
+        Log.v(TAG, "old: " + oldState + ", new: " + newState);
+        if(newState == STATE_CONNECTED){
+            startGame.setEnabled(true);
+            hostGame.setEnabled(false);
+            joinGame.setEnabled(false);
+            hostGameProgress.setVisibility(View.INVISIBLE);
+            joinGameProgress.setVisibility(View.INVISIBLE);
+        } else if(oldState == STATE_SERVE){
+            hostGame.setEnabled(true);
+            hostGameProgress.setVisibility(View.INVISIBLE);
+            lobbyStatus.setText("No player has joined your game.");
+        }
     }
 }

@@ -16,17 +16,81 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <ImageButton
-                android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/game_serve"/>
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Host a new game or join a friends' game!"
+                android:id="@+id/game_lobby_status"
+                android:layout_alignParentTop="true"
+                android:gravity="center"/>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/game_lobby_status"
+                android:id="@+id/game_lobby_buttons"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentStart="true">
+
+                <View android:id="@+id/separator"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_centerHorizontal="true"/>
+
+                <Button
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Host Game"
+                    android:id="@+id/game_host"
+                    android:layout_toLeftOf="@+id/separator"
+                    android:layout_toStartOf="@+id/separator"
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true"/>
+
+                <Button
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Join Game"
+                    android:id="@+id/game_join"
+                    android:layout_toRightOf="@+id/separator"
+                    android:layout_toEndOf="@+id/separator"
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_alignParentEnd="true"/>
+
+                <ProgressBar
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/game_host_progress"
+                    android:visibility="invisible"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginEnd="10dp"
+                    android:layout_toLeftOf="@+id/separator"
+                    android:layout_toStartOf="@+id/separator"
+                    android:layout_centerVertical="true" />
+
+                <ProgressBar
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/game_join_progress"
+                    android:visibility="invisible"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginEnd="10dp"
+                    android:layout_alignParentRight="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+            </RelativeLayout>
 
             <ListView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/game_bluetooth_devices"
-                android:layout_above="@+id/game_start">
-
+                android:layout_below="@id/game_lobby_buttons"
+                android:layout_above="@+id/game_versus">
             </ListView>
 
             <Button
@@ -34,7 +98,45 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/game_start"
                 android:text="Start Game"
-                android:layout_alignParentBottom="true"/>
+                android:enabled="false"
+                android:layout_alignParentBottom="true" />
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/game_versus"
+                android:layout_above="@id/game_start">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/game_versus_host"
+                    android:layout_toLeftOf="@+id/game_vs"
+                    android:layout_toStartOf="@+id/game_vs"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginEnd="10dp"
+                    android:textSize="20sp"
+                    android:text="Host" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:id="@+id/game_vs"
+                    android:textSize="20sp"
+                    android:text="vs." />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/game_versus_client"
+                    android:layout_toRightOf="@+id/game_vs"
+                    android:layout_toEndOf="@+id/game_vs"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginStart="10dp"
+                    android:textSize="20sp"
+                    android:text="Client" />
+            </RelativeLayout>
         </RelativeLayout>
 
         <RelativeLayout

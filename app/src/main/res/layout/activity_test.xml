@@ -17,11 +17,13 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true" />
 
-    <Button
+    <Switch
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Write to NFC"
-        android:id="@+id/test_button1"
+        android:showText="true"
+        android:textOff="Read"
+        android:textOn="Write"
+        android:id="@+id/test_switch1"
         android:layout_below="@+id/test_text1"
         android:layout_centerHorizontal="true" />
 
@@ -31,7 +33,7 @@
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="NFC Message"
         android:id="@+id/test_view1"
-        android:layout_below="@+id/test_button1" />
+        android:layout_below="@+id/test_switch1" />
 
     <RelativeLayout
         android:layout_width="match_parent"
