@@ -2,6 +2,7 @@ package de.thm.nfcmemory.model;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
@@ -96,6 +97,11 @@ public class Field {
     public void setCardColor(int index, String hex){
         if(views == null || index < 0 || index >= views.length) return;
         views[index].setBackgroundColor(Color.parseColor(hex));
+    }
+
+    public Card getCard(int index){
+        if(views == null || index < 0 || index >= cards.length) return null;
+        return cards[index];
     }
 
     public int getSize(){

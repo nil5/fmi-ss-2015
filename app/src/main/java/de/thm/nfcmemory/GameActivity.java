@@ -1,21 +1,33 @@
 package de.thm.nfcmemory;
 
+import android.annotation.TargetApi;
+import android.app.Fragment;
 import android.bluetooth.BluetoothDevice;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Message;
+import android.os.ParcelUuid;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.UUID;
 
 import de.thm.nfcmemory.bluetooth.BluetoothActivity;
 import de.thm.nfcmemory.bluetooth.BluetoothConnection;
@@ -23,6 +35,9 @@ import de.thm.nfcmemory.bluetooth.BluetoothMessage;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothConnectionStateListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothDiscoveryListener;
 import de.thm.nfcmemory.bluetooth.listener.BluetoothMessageListener;
+import de.thm.nfcmemory.model.Game;
+import de.thm.nfcmemory.model.Player;
+import de.thm.nfcmemory.model.Rules;
 import de.thm.nfcmemory.model.adapter.BluetoothDeviceListAdapter;
 
 
@@ -39,20 +54,24 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private Button hostGame;
     private ProgressBar hostGameProgress;
     private Button startGame;
+    private Game game;
     private boolean flipped = false;
     private int messageReceivedCounter = 0;
+    private int playerType;
+    private String playerName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
 
-        final ArrayList<BluetoothDevice> bluetoothDevices = new ArrayList<>();
-        bluetoothDeviceListAdapter = new BluetoothDeviceListAdapter(this, bluetoothDevices);
+        // Player name
+        playerName = NFCMemory.get().getTemp().getPlayer().name;
 
-        bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
+        // View flipper
         flipper = (ViewFlipper) findViewById(R.id.game_flipper);
 
+        // Lobby view elements
         lobbyStatus = (TextView) findViewById(R.id.game_lobby_status);
         joinGame = (Button) findViewById(R.id.game_join);
         joinGameProgress = (ProgressBar) findViewById(R.id.game_join_progress);
@@ -64,6 +83,10 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         final TextView lobbyHost = (TextView) findViewById(R.id.game_versus_host);
         final TextView lobbyClient = (TextView) findViewById(R.id.game_versus_client);
 
+        // Prepare Bluetooth device list
+        final ArrayList<BluetoothDevice> bluetoothDevices = new ArrayList<>();
+        bluetoothDeviceListAdapter = new BluetoothDeviceListAdapter(this, bluetoothDevices);
+        bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
         bluetoothDeviceList.setAdapter(bluetoothDeviceListAdapter);
         bluetoothDeviceList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -76,7 +99,6 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                 new BluetoothConnection(GameActivity.this, selectedDevice.getAddress()) {
                     @Override
                     public void onConnectionEstablished() {
-
                     }
 
                     @Override
@@ -86,17 +108,19 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
 
                     @Override
                     public void onDisconnect() {
-
                     }
                 }.start();
             }
         });
 
+        // Lobby functions
         startGame.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (getState() != STATE_CONNECTED) {
                     Toast.makeText(GameActivity.this, "Not connected to other device.", Toast.LENGTH_LONG).show();
+                } else if(game == null){
+                    Toast.makeText(GameActivity.this, "Unable to start game. No game initialized.", Toast.LENGTH_LONG).show();
                 } else send(BluetoothMessage.START);
             }
         });
@@ -104,13 +128,14 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         hostGame.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                serve("NFC Memory", true); // TODO: Insert game name
+                serve("de.thm.nfcmemory", true);
                 makeDiscoverable();
                 bluetoothDeviceListAdapter.clear();
                 joinGame.setEnabled(false);
                 hostGame.setEnabled(false);
                 hostGameProgress.setVisibility(View.VISIBLE);
-                lobbyHost.setText("Player1"); // TODO: Insert player name
+                lobbyHost.setText(playerName);
+                playerType = Player.HOST;
                 lobbyStatus.setText("Waiting for client...");
             }
         });
@@ -123,47 +148,79 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                 joinGame.setEnabled(false);
                 hostGame.setEnabled(false);
                 joinGameProgress.setVisibility(View.VISIBLE);
-                lobbyClient.setText("Player2"); // TODO: Insert player name
+                lobbyClient.setText(playerName);
+                playerType = Player.CLIENT;
                 lobbyStatus.setText("Searching for nearby hosted games...");
             }
         });
 
-        sendMessage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                send("Hello");
-            }
-        });
+        // Bluetooth
+        if(!bluetoothSupport()){
+            Toast.makeText(this, "Can not create game. Your device doesn't support Bluetooth technology.", Toast.LENGTH_LONG).show();
+            finish();
+        }
+        addBluetoothDiscoveryListener(this);
+        addBluetoothConnectionStateListener(this);
 
+        // Message handler
         addBluetoothMessageListener(new BluetoothMessageListener() {
             @Override
             public void onMessageRecieved(Message msg) {
                 String m = (String) msg.obj;
                 Log.v(TAG, "Msg: " + m);
 
-                try{
+                try {
                     byte b = Byte.valueOf(m);
                     // Message is Byte-Message
-                    if(b == BluetoothMessage.START && !flipped){
+                    if (b == BluetoothMessage.START && !flipped) {
                         flipper.showNext();
                         flipped = true;
                         send(BluetoothMessage.START);
-                    }
-                } catch(NumberFormatException e){
+                    } else Toast.makeText(GameActivity.this, "Invalid message code: " + b, Toast.LENGTH_LONG).show();
+                } catch (NumberFormatException e1) {
                     // Message is String-Message
-                    // TODO
+                    final String s[] = m.split(":", 2);
+                    final String key = s[0];
+                    final String val;
+                    try {
+                        val = s[1].trim();
+                    } catch (IndexOutOfBoundsException e2){
+                        Toast.makeText(GameActivity.this, "Invalid text message. Message must have pattern [key]: [value]", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    switch (key) {
+                        case "name":
+                            final Player player1, player2;
+                            if (playerType == Player.HOST){
+                                lobbyClient.setText(val);
+                                player1 = new Player(playerName);
+                                player2 = new Player(val);
+                            } else if (playerType == Player.CLIENT){
+                                lobbyHost.setText(val);
+                                player1 = new Player(val);
+                                player2 = new Player(playerName);
+                            } else {
+                                Toast.makeText(GameActivity.this, "Invalid player type: " + playerType, Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            game = new Game(player1, player2, Rules.getStandardRules());
+                            break;
+                        default:
+                            Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
+                    }
                 }
 
                 sendMessage.setText("Nachricht senden (empfangen: " + ++messageReceivedCounter + ")");
             }
         });
 
-        if(!bluetoothSupport()){
-            Toast.makeText(this, "Can not create game. Your device doesn't support Bluetooth technology.", Toast.LENGTH_LONG).show();
-        }
-
-        addBluetoothDiscoveryListener(this);
-        addBluetoothConnectionStateListener(this);
+        // Game functions
+        sendMessage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                send("Hello:");
+            }
+        });
     }
 
     @Override
@@ -198,14 +255,34 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        disconnect();
+    }
+
+    @Override
+    public void onBackPressed() {
+        // TODO: Really quit?
+        super.onBackPressed();
+    }
+
+    @Override
     public void onDiscoveryStart() {
         lobbyStatus.setText("Searching...: 0 hosted games found");
         startGame.setEnabled(false);
     }
 
     @Override
+    @TargetApi(15)
     public void onDeviceFound(BluetoothDevice device) {
         bluetoothDeviceListAdapter.add(device);
+        if(NFCMemory.Const.API >= 15) {
+            final ParcelUuid uuids[] = device.getUuids();
+            for(int i = 0; i < uuids.length; i++){
+                final UUID uuid = uuids[i].getUuid();
+                Log.v(TAG, "UUID: " + uuid.toString());
+            }
+        }
         lobbyStatus.setText("Searching...: " + bluetoothDeviceListAdapter.getCount() + " hosted games found");
     }
 
@@ -230,10 +307,54 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
             joinGame.setEnabled(false);
             hostGameProgress.setVisibility(View.INVISIBLE);
             joinGameProgress.setVisibility(View.INVISIBLE);
+            lobbyStatus.setText("Connected. Let's go!");
+            send("name: " + playerName);
         } else if(oldState == STATE_SERVE){
             hostGame.setEnabled(true);
+            joinGame.setEnabled(true);
             hostGameProgress.setVisibility(View.INVISIBLE);
             lobbyStatus.setText("No player has joined your game.");
+        } else if(oldState == STATE_CONNECTED && newState == STATE_ERROR){
+            Toast.makeText(this, "Connection was closed unexpectedly.", Toast.LENGTH_LONG).show();
+            finish();
+        }
+    }
+
+    /**
+     * card front.
+     */
+    public static class CardFrontFragment extends Fragment {
+        private Bitmap bmp;
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            ImageView v = (ImageView) inflater.inflate(R.layout.card, container, false);
+            v.setImageBitmap(bmp);
+            return v;
+        }
+
+        public void setImage(Bitmap bmp){
+            this.bmp = bmp;
+        }
+    }
+
+    /**
+     * card back.
+     */
+    public static class CardBackFragment extends Fragment {
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            final File sd = Environment.getExternalStorageDirectory();
+            final File file = new File(sd + NFCMemory.Const.SD_FOLDER + "/CardBacks/" + "default.png"); // TODO: Custom card backs
+
+            ImageView v = (ImageView) inflater.inflate(R.layout.card, container, false);
+
+            if(file.exists()){
+                v.setImageBitmap(BitmapFactory.decodeFile(String.valueOf(file)));
+            }
+            return v;
         }
     }
 }

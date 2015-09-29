@@ -52,12 +52,23 @@ public class TestActivity extends DefaultActivity {
     private Tag mytag;
     private String techListArray[][];
     private RelativeLayout fieldLayout;
+    private RelativeLayout cardContainer;
     private int mode = MODE_READ;
+    private boolean cardFlipped = false;
+    private CardSet cardSet;
+    private Field field;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate");
+
+        try {
+            cardSet = new CardSet("nils");
+            field = new Field(cardSet);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
         setContentView(R.layout.activity_test);
 
@@ -133,6 +144,22 @@ public class TestActivity extends DefaultActivity {
         techListArray = new String[][]{new String[]{Ndef.class.getName()}};
 
         fieldLayout = (RelativeLayout) findViewById(R.id.field);
+
+        if (savedInstanceState == null) {
+            getFragmentManager()
+                    .beginTransaction()
+                    .add(R.id.test_animation, new GameActivity.CardBackFragment())
+                    .commit();
+        }
+
+        cardContainer = (RelativeLayout) findViewById(R.id.test_animation);
+        cardContainer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                flipCard((int)(Math.random() * field.getSize()));
+                Log.v(TAG, "Flip card!");
+            }
+        });
     }
 
     @Override
@@ -159,12 +186,7 @@ public class TestActivity extends DefaultActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
-        try {
-            Field field = new Field(new CardSet("nils"));
-            field.print(this, fieldLayout);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        field.print(this, fieldLayout);
     }
 
     private NdefRecord createRecord(String text) throws UnsupportedEncodingException {
@@ -455,5 +477,46 @@ public class TestActivity extends DefaultActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void flipCard(int index) {
+        if (cardFlipped) {
+            getFragmentManager().popBackStack();
+            cardFlipped = false;
+            return;
+        }
+
+        // Flip to the back.
+
+        cardFlipped = true;
+
+        // Create and commit a new fragment transaction that adds the fragment for the back of
+        // the card, uses custom animations, and is part of the fragment manager's back stack.
+
+        final GameActivity.CardFrontFragment fragment = new GameActivity.CardFrontFragment();
+        fragment.setImage(field.getCard(index).getSrc());
+
+        getFragmentManager()
+                .beginTransaction()
+
+                        // Replace the default fragment animations with animator resources representing
+                        // rotations when switching to the back of the card, as well as animator
+                        // resources representing rotations when flipping back to the front (e.g. when
+                        // the system Back button is pressed).
+                .setCustomAnimations(
+                        R.animator.animation_card_flip_right_in, R.animator.animation_card_flip_right_out,
+                        R.animator.animation_card_flip_left_in, R.animator.animation_card_flip_left_out)
+
+                        // Replace any fragments currently in the container view with a fragment
+                        // representing the next page (indicated by the just-incremented currentPage
+                        // variable).
+                .replace(R.id.test_animation, fragment)
+
+                        // Add this transaction to the back stack, allowing users to press Back
+                        // to get to the front of the card.
+                .addToBackStack(null)
+
+                        // Commit the transaction.
+                .commit();
     }
 }
