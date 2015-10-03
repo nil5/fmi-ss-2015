@@ -53,7 +53,8 @@ public class StartActivity extends DefaultActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            return true;
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
         } else if(id == R.id.action_test) {
             Intent intent = new Intent(this, TestActivity.class);
             startActivity(intent);

@@ -33,6 +33,7 @@ import java.nio.charset.Charset;
 import android.nfc.tech.NdefFormatable;
 
 import de.thm.nfcmemory.model.CardSet;
+import de.thm.nfcmemory.model.CardView;
 import de.thm.nfcmemory.model.Field;
 
 
@@ -148,7 +149,7 @@ public class TestActivity extends DefaultActivity {
         if (savedInstanceState == null) {
             getFragmentManager()
                     .beginTransaction()
-                    .add(R.id.test_animation, new GameActivity.CardBackFragment())
+                    .add(R.id.test_animation, new CardView.CardBackFragment())
                     .commit();
         }
 
@@ -192,18 +193,13 @@ public class TestActivity extends DefaultActivity {
     private NdefRecord createRecord(String text) throws UnsupportedEncodingException {
 
         //create the message in according with the standard
-        String lang = "en";
         byte[] textBytes = text.getBytes();
-        byte[] langBytes = lang.getBytes("US-ASCII");
-        int langLength = langBytes.length;
         int textLength = textBytes.length;
 
-        byte[] payload = new byte[1 + langLength + textLength];
-        payload[0] = (byte) langLength;
+        byte[] payload = new byte[textLength];
 
         // copy langbytes and textbytes into payload
-        System.arraycopy(langBytes, 0, payload, 1, langLength);
-        System.arraycopy(textBytes, 0, payload, 1 + langLength, textLength);
+        System.arraycopy(textBytes, 0, payload, 0, textLength);
 
         NdefRecord recordNFC = new NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, new byte[0], payload);
         return recordNFC;
@@ -238,6 +234,7 @@ public class TestActivity extends DefaultActivity {
                             NdefRecord records[] = msgs[i].getRecords();
 
                             textView.append(new String(records[0].getPayload()));
+                            Log.d(TAG, "Msg: '" + new String(records[0].getPayload()) + "'");
                         }
                     } else Toast.makeText(this, "Der NDEF-Tag ist leer.", Toast.LENGTH_LONG).show();
                 } else if(NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
@@ -493,7 +490,7 @@ public class TestActivity extends DefaultActivity {
         // Create and commit a new fragment transaction that adds the fragment for the back of
         // the card, uses custom animations, and is part of the fragment manager's back stack.
 
-        final GameActivity.CardFrontFragment fragment = new GameActivity.CardFrontFragment();
+        final CardView.CardFrontFragment fragment = new CardView.CardFrontFragment();
         fragment.setImage(field.getCard(index).getSrc());
 
         getFragmentManager()

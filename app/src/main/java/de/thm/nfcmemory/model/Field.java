@@ -26,20 +26,29 @@ public class Field {
     private CardSet cardSet;
     private Card cards[];
     private TextView views[];
+    private int width;
+    private int height;
     private int size;
 
     public Field(CardSet cardSet){
+        this(cardSet, 0);
+    }
+
+    public Field(CardSet cardSet, int width){
         this.cardSet = cardSet;
+        this.width = width;
     }
 
     @TargetApi(16)
     public void print(Context context, RelativeLayout container){
         final int startId = 1000;
         final int s = cardSet.size();
-        final int w = container.getWidth();
+        final int w = width == 0 ? container.getWidth() : width;
         final Point fieldDimension = Functions.getIdealFieldDimenson(s * 2);
         final int padding = Math.round(PADDING_PERCENTAGE / 100f * w);
         final int size = (w - (fieldDimension.x + 1) * padding) / fieldDimension.x;
+
+        height = fieldDimension.y * size + (fieldDimension.y + 1) * padding;
 
         Log.v(TAG, "s: " + s + ", w: " + w + ", fieldDimensions (" + fieldDimension.x + "|" + fieldDimension.y + "), padding: " + padding + ", size: " + size);
 
@@ -74,10 +83,10 @@ public class Field {
             else card.setBackgroundDrawable(drawable);
 
             params = new LayoutParams(size, size);
-            params.setMargins(padding, padding, 0, 0);
             if(id - fieldDimension.x < startId) {
-                params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                params.setMargins(padding, padding, 0, padding);
             } else {
+                params.setMargins(padding, 0, 0, padding);
                 params.addRule(RelativeLayout.BELOW, id - fieldDimension.x);
             }
 
@@ -106,5 +115,8 @@ public class Field {
 
     public int getSize(){
         return size;
+    }
+    public int getHeight(){
+        return height;
     }
 }

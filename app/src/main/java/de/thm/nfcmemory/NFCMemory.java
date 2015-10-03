@@ -4,6 +4,8 @@ import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Point;
+import android.preference.Preference;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.WindowManager;
 
@@ -12,7 +14,7 @@ import java.io.FileNotFoundException;
 import de.thm.nfcmemory.model.CardSet;
 import de.thm.nfcmemory.model.Player;
 
-public class NFCMemory extends Application {
+public class NFCMemory extends Application implements SharedPreferences.OnSharedPreferenceChangeListener {
 	private static final String TAG = "NFCMemory";
 	private static final boolean D = true;
 	
@@ -23,6 +25,7 @@ public class NFCMemory extends Application {
 	private static NFCMemory app;
 
 	private SharedPreferences prefs;
+	private SharedPreferences defaultPrefs;
 	private Temp temporary;
 	
 	@Override
@@ -32,6 +35,8 @@ public class NFCMemory extends Application {
 		
 		if(D) Log.v(TAG, "Getting shared preferences");
 		prefs = getSharedPreferences(SHARED_PREFS, MODE_PRIVATE);
+		defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+		defaultPrefs.registerOnSharedPreferenceChangeListener(this);
 
 		if(D) Log.v(TAG, "Getting screen size");
 		final Point screenSize = new Point();
@@ -48,10 +53,11 @@ public class NFCMemory extends Application {
 		if(D) Log.v(TAG, "Creating temporary object");
 		temporary = new Temp();
 		temporary.player = new Player(prefs.getString(PREF_PLAYER_NAME, "Player"));
-		final String cardSet = prefs.getString(PREF_CARD_SET, "default");
+		if(D) Log.v(TAG, "Temporary Player: '" + temporary.player.name + "'");
+		final String cardSet = defaultPrefs.getString(SettingsActivity.KEY_PREFS_CARD_SET, "default");
 		try {
 			temporary.cardSet = new CardSet(cardSet);
-			if(D) Log.v(TAG, "Temporary Player is " + temporary.player.name + ". Temporary CardSet id is " + temporary.cardSet.name);
+			if(D) Log.v(TAG,"Temporary CardSet ID: '" + temporary.cardSet.name + "'");
 		} catch (FileNotFoundException e) {
 			if(D) Log.v(TAG, "CardSet '" + cardSet + "' does not exist.");
 		}
@@ -64,7 +70,22 @@ public class NFCMemory extends Application {
 	public static NFCMemory get(){
 		return app;
 	}
-	
+
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+		switch(key){
+			case SettingsActivity.KEY_PREFS_CARD_SET:
+				final String cardSet = defaultPrefs.getString(key, "default");
+				try {
+					temporary.setCardSet(new CardSet(cardSet));
+				} catch (FileNotFoundException e) {
+					if(D) Log.d(TAG, "Failed to apply card set: '" + cardSet + "'");
+					e.printStackTrace();
+				}
+				break;
+		}
+	}
+
 	public static class Const{
 		public static final int API = android.os.Build.VERSION.SDK_INT;
 		public static final String VERSION = android.os.Build.VERSION.RELEASE;
@@ -81,14 +102,7 @@ public class NFCMemory extends Application {
 		public CardSet getCardSet(){ return cardSet; }
 		protected void setCardSet(CardSet cardSet){
 			this.cardSet = cardSet;
-			final boolean success = prefs.edit()
-					.putString(PREF_CARD_SET, cardSet.name)
-					.commit();
-			if(D){
-				Log.v(TAG, "New CardSet set in temporary object");
-				Log.v(TAG, success ? "Shared preferences updated: "
-						+ PREF_CARD_SET + " = " + cardSet.name : "Shared preferences NOT updated.");
-			}
+			Log.d(TAG, "Card set '" + cardSet.name + "' activated. Shared preferences handled by SettingsActivity...");
 		}
 
 		protected Player getPlayer(){ return player; }

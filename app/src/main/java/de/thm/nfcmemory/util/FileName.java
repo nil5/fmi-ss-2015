@@ -8,7 +8,10 @@ public class FileName {
     private static final String PATH_SEPARATOR = "/";
 
     public static String extension(String path){
-        return path.substring(path.lastIndexOf(EXT_SEPARATOR) + 1);
+        int i = path.lastIndexOf(EXT_SEPARATOR);
+        int p = path.lastIndexOf(PATH_SEPARATOR);
+
+        return i > p ? path.substring(i+1) : "";
     }
 
     public static String basename(String path){

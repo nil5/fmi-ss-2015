@@ -40,6 +40,13 @@ public class NFCActivity extends DefaultActivity {
         IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
 
+        try {
+            ndefDetected.addDataType("*/*"); /* Handles all MIME based dispatches. You should specify only the ones that you need. */
+        }
+        catch (IntentFilter.MalformedMimeTypeException e) {
+            throw new RuntimeException("fail", e);
+        }
+
         tagFilter = new IntentFilter[]{ndefDetected, tagDetected, };
         pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
     }
@@ -67,10 +74,16 @@ public class NFCActivity extends DefaultActivity {
     private void handleIntent(Intent intent){
         switch(mode){
             case READ:
-                if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
+                final String action = intent.getAction();
+                if(action == null) return;
+                Log.v(TAG, "Reading NFC tag. Action: " + action);
+                if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
                     Parcelable[] rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
                     if (rawMsgs != null) {
                         NdefMessage msgs[] = new NdefMessage[rawMsgs.length];
+                        for (int i = 0; i < rawMsgs.length; i++) {
+                            msgs[i] = (NdefMessage) rawMsgs[i];
+                        }
                         for(NFCListener lis : NFC_LISTENERS){
                             lis.onTagDetected(msgs);
                         }
@@ -114,10 +127,9 @@ public class NFCActivity extends DefaultActivity {
         byte[] textBytes = text.getBytes("US-ASCII");
         int textLength = textBytes.length;
 
-        byte[] payload = new byte[1 + textLength];
-        payload[0] = (byte) textLength;
+        byte[] payload = new byte[textLength];
 
-        System.arraycopy(textBytes, 0, payload, 1, textLength);
+        System.arraycopy(textBytes, 0, payload, 0, textLength);
 
         return new NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, new byte[0], payload);
     }

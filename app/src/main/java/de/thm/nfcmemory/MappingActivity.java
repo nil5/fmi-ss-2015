@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import java.io.FileNotFoundException;
 
@@ -14,7 +15,8 @@ import de.thm.nfcmemory.model.Field;
 
 
 public class MappingActivity extends NFCActivity implements NFCActivity.NFCListener {
-    private static final String IDENTIFIER = "de.thm.nfcmemory.";
+    public static final String IDENTIFIER = "de.thm.nfcmemory.";
+
     private RelativeLayout fieldLayout;
     private Field field;
     private int currentIndex;
@@ -36,11 +38,12 @@ public class MappingActivity extends NFCActivity implements NFCActivity.NFCListe
         try {
             currentIndex = 0;
             setString(IDENTIFIER + currentIndex);
-            field = new Field(new CardSet("nils")); // TODO: Replace with selected card set
+            field = new Field(app.getTemp().getCardSet()); // TODO: Replace with selected card set
             field.print(this, fieldLayout);
             field.setCardColor(currentIndex, "#00FF00");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        } catch (NullPointerException e) {
+            Toast.makeText(this, "No card set selected. Go to settings and choose a valid card set.", Toast.LENGTH_LONG).show();
+            finish();
         }
     }
 

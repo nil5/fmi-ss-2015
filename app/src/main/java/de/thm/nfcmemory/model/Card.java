@@ -9,6 +9,8 @@ import android.view.View;
 public class Card {
     private String id;
     private Bitmap src;
+    public boolean revealed = false;
+    public boolean visible = false;
 
     public Card(String id, Bitmap src){
         this.id = id;

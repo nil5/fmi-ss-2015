@@ -6,15 +6,17 @@ package de.thm.nfcmemory.model;
 public class Game {
     public final Player host;
     public final Player client;
+    public final Field field;
 
     private final Rules rules;
     private int turnCounter = 0;
     private int firstTurn;
 
-    public Game(Player host, Player client, Rules rules) {
+    public Game(Player host, Player client, Rules rules, Field field) {
         this.host = host;
         this.client = client;
         this.rules = rules;
+        this.field = field;
     }
 
     public void setFirstTurn(Player player){
