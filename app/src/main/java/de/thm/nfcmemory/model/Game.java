@@ -7,16 +7,18 @@ public class Game {
     public final Player host;
     public final Player client;
     public final Field field;
+    public final int playerType;
 
     private final Rules rules;
     private int turnCounter = 0;
     private int firstTurn;
 
-    public Game(Player host, Player client, Rules rules, Field field) {
+    public Game(Player host, Player client, int playerType, Rules rules, Field field) {
         this.host = host;
         this.client = client;
         this.rules = rules;
         this.field = field;
+        this.playerType = playerType;
     }
 
     public void setFirstTurn(Player player){
@@ -32,8 +34,16 @@ public class Game {
         return host;
     }
 
+    public boolean myTurn(){
+        final Player next = getNextTurn();
+        return playerType == Player.HOST && next == host
+                || playerType == Player.CLIENT && next == client;
+    }
+
     private Player getRandomPlayer(){
         if(Math.random() < 0.5) return host;
         else return client;
     }
+
+
 }

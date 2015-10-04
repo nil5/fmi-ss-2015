@@ -36,6 +36,7 @@ public class CardSet extends ArrayList<Card> {
             throw new FileNotFoundException("The directory '" + dir + "' does not exist.");
 
         if(D) Log.d(TAG, "Listing files of CardSet '" + name + "'");
+        int value = 0;
         for(File file : dir.listFiles()){
             final String fileName = file.getName();
             final String extension = FileName.extension(fileName);
@@ -44,7 +45,7 @@ public class CardSet extends ArrayList<Card> {
                 if(D) Log.d(TAG, "Invalid extension. Skipping file.");
                 continue;
             } else if(D) Log.d(TAG, "Creating Bitmap...");
-            add(new Card(FileName.basename(fileName), BitmapFactory.decodeFile(dir + "/" + fileName)));
+            add(new Card(FileName.basename(fileName), ++value, BitmapFactory.decodeFile(dir + "/" + fileName)));
         }
     }
 

@@ -22,6 +22,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -38,6 +41,7 @@ import de.thm.nfcmemory.model.Game;
 import de.thm.nfcmemory.model.Player;
 import de.thm.nfcmemory.model.Rules;
 import de.thm.nfcmemory.model.adapter.BluetoothDeviceListAdapter;
+import de.thm.nfcmemory.model.InGameMessage;
 
 
 public class GameActivity extends BluetoothActivity implements BluetoothDiscoveryListener, BluetoothConnectionStateListener, NFCActivity.NFCListener {
@@ -58,6 +62,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private ProgressBar joinGameProgress;
     private ProgressBar hostGameProgress;
 
+    private InGameMessage currentMessage;
     private CardView cardView;
     private Field field;
     private Game game;
@@ -234,8 +239,11 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                 Toast.makeText(GameActivity.this, "Invalid player type: " + playerType, Toast.LENGTH_LONG).show();
                                 return;
                             }
-                            game = new Game(player1, player2, Rules.getStandardRules(), field);
+                            game = new Game(player1, player2, playerType, Rules.getStandardRules(), field);
 
+                            break;
+                        case "game":
+                            Log.d(TAG, val);
                             break;
                         default:
                             Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
@@ -250,15 +258,22 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
             @Override
             public void onClick(View v) {
                 cardView.reset();
+                continueButton.setEnabled(false);
+                field.resetHighlights();
+                Log.d(TAG, "Sending message: " + currentMessage.toString());
+                send(currentMessage.toString());
             }
         });
 
         // Card flip listener
         final RelativeLayout leftCardContainer = (RelativeLayout) findViewById(R.id.game_flip_card_left);
         final RelativeLayout rightCardContainer = (RelativeLayout) findViewById(R.id.game_flip_card_right);
-        leftCardContainer.setOnClickListener(new View.OnClickListener() {
+
+        // Doesn't work with FragmentManager method popBackStack...
+        /*leftCardContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Log.v(TAG, "leftCardClick");
                 if(cardView.getIndex(CardView.Card.LEFT) != -1)
                     cardView.flipCard(CardView.Card.LEFT);
             }
@@ -266,10 +281,11 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         rightCardContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Log.v(TAG, "rightCardClick");
                 if(cardView.getIndex(CardView.Card.RIGHT) != -1)
                     cardView.flipCard(CardView.Card.RIGHT);
             }
-        });
+        });*/
 
         // Toggle field init
         toggleField = (Button) findViewById(R.id.game_button_show_field);
@@ -434,12 +450,32 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                         try {
                             final int index = Integer.valueOf(message.substring(identifierLength));
                             if(index < 0 || index < field.getSize()){
-                                if(cardView.flipCard(index) == CardView.Card.RIGHT)
-                                    continueButton.setEnabled(true);
+                                if(game != null && !game.myTurn()){
+                                    Toast.makeText(this, "It's " + game.getNextTurn().name + "s' turn!", Toast.LENGTH_LONG).show();
+                                } else if(field.getCard(index).active && index != cardView.getIndex(CardView.Card.LEFT)
+                                        && index != cardView.getIndex(CardView.Card.RIGHT)) {
+                                    if(!field.isDisabled(index)) {
+                                        final CardView.Card flippedCard = cardView.flipCard(index);
+                                        if(flippedCard != null) field.highlight(index);
+                                        if(flippedCard == CardView.Card.RIGHT)
+                                            continueButton.setEnabled(true);
+                                            currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
+                                        if (CardView.Card.isMatch()) {
+                                            Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
+                                            field.disable(cardView.getIndex(CardView.Card.LEFT));
+                                            field.disable(cardView.getIndex(CardView.Card.RIGHT));
+                                            currentMessage.getContent().put("disabled", field.getDisabled());
+                                        }
+                                    } else Toast.makeText(this, "The card is already out of the game.", Toast.LENGTH_LONG).show();
+                                } else Log.w(TAG, "Could not flip card. Card is not active or already revealed.");
                                 return;
                             } else Log.e(TAG, "Could not flip card. Index out of field range.");
                         } catch(NumberFormatException e){
                             Log.e(TAG, "Could not process NFC content. Invalid message: '" + message + "'");
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Could not create message.");
+                            Toast.makeText(this, "Message could not be sent.", Toast.LENGTH_LONG).show();
+                            return;
                         }
                     } else Log.e(TAG, "Could not process NFC content. Message to short.");
                 } else Log.e(TAG, "Could not process NFC content. No record found.");

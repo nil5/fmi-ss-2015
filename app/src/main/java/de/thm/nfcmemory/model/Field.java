@@ -13,6 +13,8 @@ import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+
 import de.thm.nfcmemory.NFCMemory;
 import de.thm.nfcmemory.util.Functions;
 
@@ -22,6 +24,9 @@ import de.thm.nfcmemory.util.Functions;
 public class Field {
     private static final String TAG = "Field";
     private static final int PADDING_PERCENTAGE = 2;
+
+    private final ArrayList<Integer> highlighted = new ArrayList<>();
+    private final ArrayList<Integer> disabled = new ArrayList<>();
 
     private CardSet cardSet;
     private Card cards[];
@@ -101,6 +106,32 @@ public class Field {
             container.addView(card);
             views[i] = card;
         }
+    }
+
+    public void highlight(int index){
+        highlighted.add(index);
+        setCardColor(index, "#00FF00");
+    }
+
+    public void resetHighlights(){
+        for(int i = highlighted.size() - 1; i >= 0; i--){
+            final int index = highlighted.get(i);
+            if(getCard(index).active) setCardColor(index, "#FFFFFF");
+        }
+    }
+
+    public void disable(int index){
+        if(!disabled.contains(index)) disabled.add(index);
+        getCard(index).active = false;
+        setCardColor(index, "#AAAAAA");
+    }
+
+    public boolean isDisabled(int index){
+        return !getCard(index).active;
+    }
+
+    public ArrayList<Integer> getDisabled(){
+        return disabled;
     }
 
     public void setCardColor(int index, String hex){

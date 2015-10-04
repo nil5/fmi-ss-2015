@@ -35,8 +35,8 @@ public class CardView {
     }
 
     public void init(int leftLayoutId, int rightLayoutId){
-        Card.LEFT.id = leftLayoutId;
-        Card.RIGHT.id = rightLayoutId;
+        Card.LEFT.init(leftLayoutId);
+        Card.RIGHT.init(rightLayoutId);
 
         fragmentManager
                 .beginTransaction()
@@ -46,7 +46,10 @@ public class CardView {
     }
 
     public Card flipCard(int index){
-        if(flipCounter + 1 % 3 == 0) return null;
+        if((flipCounter + 1) % 3 == 0){
+            Log.w(TAG, "Could not flip card. Only 2 cards can be flipped per turn.");
+            return null;
+        }
         flipCounter++;
         Log.d(TAG, "flipCounter: " + flipCounter);
         switch(flipCounter % 3){
@@ -92,8 +95,23 @@ public class CardView {
 
         private boolean visible;
         private int id;
-        private int index = -1;
+        private int index;
         private CardFrontFragment cardFront;
+
+        private void init(int id){
+            this.id = id;
+            index = -1;
+            visible = false;
+        }
+
+        public de.thm.nfcmemory.model.Card getCard(){
+            return field.getCard(index);
+        }
+
+        public static boolean isMatch(){
+            if(LEFT.index == -1 || RIGHT.index == -1) return false;
+            return LEFT.getCard().value == RIGHT.getCard().value;
+        }
 
         private void flip(int index){
             Log.d(TAG, "flip card");
