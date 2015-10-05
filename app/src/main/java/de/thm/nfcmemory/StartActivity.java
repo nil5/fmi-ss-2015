@@ -22,14 +22,14 @@ public class StartActivity extends DefaultActivity {
         final NFCMemory.Temp temp = NFCMemory.get().getTemp();
         final EditText inputName = (EditText) findViewById(R.id.input_name);
 
-        inputName.setText(temp.getPlayer().name);
+        inputName.setText(temp.getPlayerName());
         inputName.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {  }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                temp.setPlayer(new Player(s.toString()));
+                temp.setPlayerName(s.toString());
             }
 
             @Override

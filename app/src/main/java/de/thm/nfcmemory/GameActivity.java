@@ -62,7 +62,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private ProgressBar joinGameProgress;
     private ProgressBar hostGameProgress;
 
-    private InGameMessage currentMessage;
+    private InGameMessage currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);;
     private CardView cardView;
     private Field field;
     private Game game;
@@ -81,7 +81,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         Log.v(TAG, "onCreate");
 
         // Player name
-        playerName = app.getTemp().getPlayer().name;
+        playerName = app.getTemp().getPlayerName();
         final CardSet cardSet = app.getTemp().getCardSet();
         if(cardSet == null){
             Toast.makeText(this, "No card set selected. Go to settings and choose a valid card set.", Toast.LENGTH_LONG).show();
@@ -180,6 +180,9 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         field = new Field(cardSet, NFCMemory.Const.getScreen().width);
         final int fieldSize = field.getSize();
 
+        // Test Game
+        game = new Game(new Player("P1", Player.HOST), new Player("P2", Player.CLIENT), playerType, Rules.getStandardRules(), field); // TODO: remove
+
         // CardView
         cardView = new CardView(getFragmentManager(), field);
         // CardView init
@@ -229,21 +232,55 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                             final Player player1, player2;
                             if (playerType == Player.HOST) {
                                 lobbyClient.setText(val);
-                                player1 = new Player(playerName);
-                                player2 = new Player(val);
+                                player1 = new Player(playerName, Player.HOST);
+                                player2 = new Player(val, Player.CLIENT);
                             } else if (playerType == Player.CLIENT) {
                                 lobbyHost.setText(val);
-                                player1 = new Player(val);
-                                player2 = new Player(playerName);
+                                player1 = new Player(val, Player.HOST);
+                                player2 = new Player(playerName, Player.CLIENT);
                             } else {
                                 Toast.makeText(GameActivity.this, "Invalid player type: " + playerType, Toast.LENGTH_LONG).show();
                                 return;
                             }
                             game = new Game(player1, player2, playerType, Rules.getStandardRules(), field);
-
+                            final String turn = game.getTurn().name;
+                            if(playerType == Player.HOST){
+                                send("firstTurn: " + game.getTurn().type);
+                                send("field: " + field.toString());
+                                setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
+                            }
+                            break;
+                        case "field":
+                            field.parse(val);
+                            field.print(GameActivity.this, fieldLayout);
+                            break;
+                        case "firstTurn":
+                            game.setTurn(Integer.valueOf(val));
+                            setTitle(game.getTurn().name + (game.getTurn().name.endsWith("s") ? "" : "s") + "' turn");
                             break;
                         case "game":
                             Log.d(TAG, val);
+                            InGameMessage message = new InGameMessage(InGameMessage.TYPE_RECEIVED);
+                            message.setContent(val);
+                            if(message.getContent().has("yourTurn")){
+                                game.setTurn(playerType);
+                                setTitle(playerName + (playerName.endsWith("s") ? "" : "s") + "' turn");
+                                currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
+                                Toast.makeText(GameActivity.this, "It's your turn!", Toast.LENGTH_LONG).show();
+                            }
+                            if(message.getContent().has("disabled")){
+                                try {
+                                    JSONArray disabled = new JSONArray(message.getContent().getString("disabled"));
+                                    for(int i = 0; i < disabled.length(); i++){
+                                        field.disable(disabled.getInt(i));
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            if(message.getContent().has("finished")){
+                                Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
+                            }
                             break;
                         default:
                             Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
@@ -449,22 +486,34 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                     if(message.length() > identifierLength){
                         try {
                             final int index = Integer.valueOf(message.substring(identifierLength));
-                            if(index < 0 || index < field.getSize()){
+                            if(index >= 0 && index < field.getSize() && field.countRemaining() > 0){
                                 if(game != null && !game.myTurn()){
-                                    Toast.makeText(this, "It's " + game.getNextTurn().name + "s' turn!", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(this, "It's " + game.getTurn().name + "s' turn!", Toast.LENGTH_LONG).show();
                                 } else if(field.getCard(index).active && index != cardView.getIndex(CardView.Card.LEFT)
                                         && index != cardView.getIndex(CardView.Card.RIGHT)) {
                                     if(!field.isDisabled(index)) {
                                         final CardView.Card flippedCard = cardView.flipCard(index);
                                         if(flippedCard != null) field.highlight(index);
-                                        if(flippedCard == CardView.Card.RIGHT)
+                                        if(flippedCard == CardView.Card.RIGHT) {
                                             continueButton.setEnabled(true);
-                                            currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
-                                        if (CardView.Card.isMatch()) {
-                                            Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
-                                            field.disable(cardView.getIndex(CardView.Card.LEFT));
-                                            field.disable(cardView.getIndex(CardView.Card.RIGHT));
-                                            currentMessage.getContent().put("disabled", field.getDisabled());
+                                            currentMessage.getContent().put("yourTurn", true);
+                                            setTitle(game.getOpponent().name);
+
+                                            final boolean match = CardView.Card.isMatch();
+                                            if (match) {
+                                                Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
+                                                field.disable(cardView.getIndex(CardView.Card.LEFT));
+                                                field.disable(cardView.getIndex(CardView.Card.RIGHT));
+                                                currentMessage.getContent().put("disabled", field.getDisabled());
+
+                                                if(field.countRemaining() < 1){
+                                                    currentMessage.getContent().put("finished", true);
+                                                    Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
+                                                }
+                                            }
+                                            if(!match || !game.getRules().hasFlag(Rules.AGAIN_ON_SCORE)){
+                                                game.setTurn(game.getOpponentType());
+                                            }
                                         }
                                     } else Toast.makeText(this, "The card is already out of the game.", Toast.LENGTH_LONG).show();
                                 } else Log.w(TAG, "Could not flip card. Card is not active or already revealed.");

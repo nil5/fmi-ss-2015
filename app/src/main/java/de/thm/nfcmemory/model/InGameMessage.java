@@ -1,5 +1,6 @@
 package de.thm.nfcmemory.model;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -22,6 +23,13 @@ public class InGameMessage {
         else if(type == TYPE_SENT) SENT.add(this);
     }
 
+    public void setContent(String json){
+        try {
+            content = new JSONObject(json);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
     public JSONObject getContent(){
         return content;
     }
