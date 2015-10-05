@@ -15,16 +15,8 @@
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_gravity="center_horizontal"
-        android:layout_weight="2"
-       ></LinearLayout>
-
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_weight="2"
+        android:layout_height="wrap_content"
+        android:layout_weight="8"
         android:gravity="center_horizontal"
         android:layout_gravity="center_horizontal"
         android:id="@+id/layout_input">
@@ -32,29 +24,37 @@
         <EditText
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textColor="#000000"
-            android:textColorHint="#000000"
+            android:textColor="#ffffff"
+            android:textColorHint="#ffffff"
             android:hint="@string/input_name"
             android:layout_weight="1"
             android:id="@+id/input_name"
-            android:layout_gravity="right" />
+            android:clickable="false"
+            android:gravity="bottom"
+            android:layout_gravity="bottom"
+            android:singleLine="true"
+
+            />
 
     </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:layout_height="wrap_content"
         android:gravity="fill_horizontal"
+        android:id="@+id/layout_button"
         android:layout_weight="1"
-        android:id="@+id/layout_button">
+        android:layout_gravity="center|bottom">
 
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="clip_horizontal"
             android:background="@mipmap/button_start"
-            android:layout_gravity="center_horizontal"
-            android:id="@+id/button_startGame"/>
+            android:layout_gravity="center"
+            android:id="@+id/button_startGame"
+            android:enabled="false"
+            android:gravity="clip_horizontal"
+            android:layout_marginTop="20dp" />
     </LinearLayout>
 </LinearLayout>
