@@ -11,7 +11,7 @@ public class Game {
 
     private final Rules rules;
     private int turnCounter = 0;
-    private int firstTurn;
+    private int turn;
 
     public Game(Player host, Player client, int playerType, Rules rules, Field field) {
         this.host = host;
@@ -19,23 +19,23 @@ public class Game {
         this.rules = rules;
         this.field = field;
         this.playerType = playerType;
+        setTurn(-1);
     }
 
-    public void setFirstTurn(Player player){
-        if(player == host) firstTurn = Player.HOST;
-        else if(player == client) firstTurn = Player.CLIENT;
-        else setFirstTurn(getRandomPlayer());
+    public void setTurn(int playerType){
+        if(playerType == Player.CLIENT || playerType == Player.HOST)
+            turn = playerType;
+        else setTurn(getRandomPlayerType());
     }
 
-    public Player getNextTurn(){
-        if(turnCounter % 2 == 0){
-            if(firstTurn == Player.CLIENT) return client;
-        } else if(firstTurn == Player.HOST) return client;
-        return host;
+    public Player getTurn(){
+        if(turn == Player.CLIENT) return client;
+        else if(turn == Player.HOST) return host;
+        return null;
     }
 
     public boolean myTurn(){
-        final Player next = getNextTurn();
+        final Player next = getTurn();
         return playerType == Player.HOST && next == host
                 || playerType == Player.CLIENT && next == client;
     }
@@ -45,5 +45,27 @@ public class Game {
         else return client;
     }
 
+    private int getRandomPlayerType(){
+        if(Math.random() < 0.5) return Player.HOST;
+        else return Player.CLIENT;
+    }
 
+    public Player getPlayerFromType(int type){
+        if(type == Player.HOST) return host;
+        else if(type == Player.CLIENT) return client;
+        else return null;
+    }
+
+    public Player getOpponent(){
+        if(playerType == Player.HOST) return client;
+        else return host;
+    }
+
+    public int getOpponentType(){
+        return playerType == Player.HOST ? Player.CLIENT : Player.HOST;
+    }
+
+    public Rules getRules(){
+        return rules;
+    }
 }

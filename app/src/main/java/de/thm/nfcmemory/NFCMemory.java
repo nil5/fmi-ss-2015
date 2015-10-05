@@ -52,8 +52,8 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 
 		if(D) Log.v(TAG, "Creating temporary object");
 		temporary = new Temp();
-		temporary.player = new Player(prefs.getString(PREF_PLAYER_NAME, "Player"));
-		if(D) Log.v(TAG, "Temporary Player: '" + temporary.player.name + "'");
+		temporary.playerName = prefs.getString(PREF_PLAYER_NAME, "Player");
+		if(D) Log.v(TAG, "Temporary Player: '" + temporary.playerName + "'");
 		final String cardSet = defaultPrefs.getString(SettingsActivity.KEY_PREFS_CARD_SET, "default");
 		try {
 			temporary.cardSet = new CardSet(cardSet);
@@ -97,7 +97,7 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 
 	public class Temp{
 		private CardSet cardSet;
-		private Player player;
+		private String playerName;
 
 		public CardSet getCardSet(){ return cardSet; }
 		protected void setCardSet(CardSet cardSet){
@@ -105,16 +105,16 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 			Log.d(TAG, "Card set '" + cardSet.name + "' activated. Shared preferences handled by SettingsActivity...");
 		}
 
-		protected Player getPlayer(){ return player; }
-		protected void setPlayer(Player player){
-			this.player = player;
+		protected String getPlayerName(){ return playerName; }
+		protected void setPlayerName(String playerName){
+			this.playerName = playerName;
 			final boolean success = prefs.edit()
-					.putString(PREF_PLAYER_NAME, player.name)
+					.putString(PREF_PLAYER_NAME, playerName)
 					.commit();
 			if(D){
-				Log.v(TAG, "New season set in temporary object");
+				Log.v(TAG, "New player name set in temporary object");
 				Log.v(TAG, success ? "Shared preferences updated: "
-						+ PREF_PLAYER_NAME + " = " + player.name : "Shared preferences NOT updated.");
+						+ PREF_PLAYER_NAME + " = " + playerName : "Shared preferences NOT updated.");
 			}
 		}
 	}

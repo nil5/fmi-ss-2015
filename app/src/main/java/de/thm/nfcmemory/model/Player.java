@@ -8,8 +8,10 @@ public class Player {
     public static final int CLIENT = 101;
 
     public final String name;
+    public final int type;
 
-    public Player(String name) {
+    public Player(String name, int type) {
         this.name = name;
+        this.type = type;
     }
 }

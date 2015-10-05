@@ -26,6 +26,10 @@ public class Rules {
         return this;
     }
 
+    public boolean hasFlag(int flag){
+        return flags.contains(flag);
+    }
+
     // Predefined Rules
     public static Rules getStandardRules(){
         return new Rules()

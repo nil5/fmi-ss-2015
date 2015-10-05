@@ -12,8 +12,13 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.TreeMap;
 
 import de.thm.nfcmemory.NFCMemory;
 import de.thm.nfcmemory.util.Functions;
@@ -42,39 +47,31 @@ public class Field {
     public Field(CardSet cardSet, int width){
         this.cardSet = cardSet;
         this.width = width;
+
+        size = this.cardSet.size() * 2;
+        views = new TextView[this.size];
+        cards = Field.getCards(this.cardSet);
+
+        Functions.shuffleCards(cards);
     }
 
     @TargetApi(16)
     public void print(Context context, RelativeLayout container){
         final int startId = 1000;
-        final int s = cardSet.size();
         final int w = width == 0 ? container.getWidth() : width;
-        final Point fieldDimension = Functions.getIdealFieldDimenson(s * 2);
+        final Point fieldDimension = Functions.getIdealFieldDimenson(this.size);
         final int padding = Math.round(PADDING_PERCENTAGE / 100f * w);
         final int size = (w - (fieldDimension.x + 1) * padding) / fieldDimension.x;
 
         height = fieldDimension.y * size + (fieldDimension.y + 1) * padding;
 
-        Log.v(TAG, "s: " + s + ", w: " + w + ", fieldDimensions (" + fieldDimension.x + "|" + fieldDimension.y + "), padding: " + padding + ", size: " + size);
+        Log.v(TAG, "s: " + this.size + ", w: " + w + ", fieldDimensions (" + fieldDimension.x + "|" + fieldDimension.y + "), padding: " + padding + ", size: " + size);
 
-        int i, id;
-        Card temp;
+        int id;
         TextView card;
         LayoutParams params;
 
-        this.size = s * 2;
-        cards = new Card[this.size];
-        views = new TextView[this.size];
-
-        for(i = 0; i < s; i++){
-            temp = cardSet.get(i);
-            cards[i * 2] = temp;
-            cards[i * 2 + 1] = temp;
-        }
-
-        Functions.shuffleCards(cards);
-
-        for(i = 0; i < cards.length; i++){
+        for(int i = 0; i < cards.length; i++){
             final BitmapDrawable drawable = new BitmapDrawable(context.getResources(), cards[i].getSrc());
             id = startId + i;
 
@@ -144,10 +141,89 @@ public class Field {
         return cards[index];
     }
 
+    public int countRemaining(){
+        return size - disabled.size();
+    }
+
     public int getSize(){
         return size;
     }
     public int getHeight(){
         return height;
+    }
+
+    @Override
+    public String toString() {
+        String field = cardSet.name;
+        for(int i = 0; i < cards.length; i++){
+            field += ";" + i + "-" + cards[i].id;
+        }
+        return field;
+    }
+
+    public void parse(String s){
+        String data[] = s.split(";");
+        Log.v(TAG, "Splitted data array for field parsing. Length: " + data.length);
+        try {
+            final CardSet cardset = new CardSet(data[0]);
+            final int cardSetSize = cardset.size();
+            Log.v(TAG, "Loaded card set. Name: " + data[0] + ", Size: " + cardSetSize);
+
+            if(cardSetSize * 2 != data.length - 1){
+                Log.e(TAG, "The requested card set hast a different size than the installed one (" + cardSetSize + " - " + (data.length - 1) + ").");
+                return;
+            }
+
+            Card cardArr[] = new Card[cardSetSize * 2];
+            Log.v(TAG, "Created card array. Size: " + (cardSetSize * 2));
+
+            final TreeMap<Integer, Card> map = new TreeMap<>();
+            final Card cards[] = Field.getCards(cardset);
+            for(int i = 0; i < cards.length; i++) {
+                for (int j = 1; j < data.length; j++){
+                    if(map.containsKey(j - 1)) continue;
+                    Log.v(TAG, "i: " + i + ", j: " + j + ", Current card: " + cards[i].id + ", Current data: " + data[j]);
+                    String subData[] = data[j].split("-", 2);
+                    if(subData.length < 2){
+                        Log.e(TAG, "Parsing error. Invalid subdata at index " + j + ": " + data[j]);
+                        return;
+                    } else if(cards[i].id.equals(subData[1])){
+                        map.put(j - 1, cards[i]);
+                        Log.v(TAG, "Card mapped.");
+                    }
+                }
+            }
+
+            final int mapSize = map.size();
+            if(cardArr.length != mapSize){
+                Log.e(TAG, "Sorting the field failed (" + cardArr.length + " != " + mapSize + ").");
+                return;
+            }
+
+            for(int i = 0; i < cardArr.length; i++){
+                cardArr[i] = map.get(i);
+                Log.v(TAG, cardArr[i].id);
+            }
+
+            this.cardSet = cardset;
+            this.cards = cardArr;
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, "The requested card set is not installed on this device.");
+            e.printStackTrace();
+        }
+    }
+
+    private static Card[] getCards(CardSet cardSet){
+        final int size = cardSet.size() * 2;
+        final Card cards[] = new Card[size];
+
+        Card temp;
+        for(int i = 0; i < size; i += 2){
+            temp = cardSet.get(i / 2);
+            cards[i] = temp;
+            cards[i + 1] = temp;
+        }
+
+        return cards;
     }
 }
