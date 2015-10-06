@@ -57,6 +57,10 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private TextView lobbyStatus;
     private TextView lobbyHost;
     private TextView lobbyClient;
+    private TextView resultHostName;
+    private TextView resultHost;
+    private TextView resultClientName;
+    private TextView resultClient;
     private Button startGame;
     private Button joinGame;
     private Button hostGame;
@@ -105,6 +109,10 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
 
         // Game view elements
+        resultHostName = (TextView) findViewById(R.id.game_result_host_name);
+        resultHost = (TextView) findViewById(R.id.game_result_host);
+        resultClientName = (TextView) findViewById(R.id.game_result_client_name);
+        resultClient = (TextView) findViewById(R.id.game_result_client);
         continueButton = (Button) findViewById(R.id.game_continue);
         fieldLayout = (RelativeLayout) findViewById(R.id.game_field);
 
@@ -144,6 +152,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         // Game functions
         continueButton.setEnabled(false);
         continueButton.setOnClickListener(this);
+        refreshResult(true);
 
         // Toggle field init
         toggleField = (Button) findViewById(R.id.game_button_show_field);
@@ -338,9 +347,12 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                             final boolean match = CardView.Card.isMatch();
                                             if (match) {
                                                 Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
+                                                game.addPoints(playerType, 1);
                                                 field.disable(cardView.getIndex(CardView.Card.LEFT));
                                                 field.disable(cardView.getIndex(CardView.Card.RIGHT));
                                                 currentMessage.getContent().put("disabled", field.getDisabled());
+                                                currentMessage.getContent().put("points", game.getPointsFromPlayerType(playerType));
+                                                refreshResult();
 
                                                 if(field.countRemaining() < 1){
                                                     currentMessage.getContent().put("finished", true);
@@ -479,6 +491,15 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                         if (message.getContent().has("finished")) {
                             Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
                         }
+                        if(message.getContent().has("points")){
+                            try {
+                                game.getPlayerFromType(game.getOpponentType()).setPoints(message.getContent().getInt("points"));
+                                refreshResult();
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Could not add points.");
+                                e.printStackTrace();
+                            }
+                        }
                         break;
                     default:
                         Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
@@ -563,5 +584,17 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
             public void onDisconnect() {
             }
         }.start();
+    }
+
+    private void refreshResult(){
+        refreshResult(false);
+    }
+    private void refreshResult(boolean refreshPlayerNames){
+        if(refreshPlayerNames){
+            resultClientName.setText(game.getPlayerFromType(Player.CLIENT).name);
+            resultHostName.setText(game.getPlayerFromType(Player.HOST).name);
+        }
+        resultClient.setText(game.getPointsFromPlayerType(Player.CLIENT) + "");
+        resultHost.setText(game.getPointsFromPlayerType(Player.HOST) + "");
     }
 }

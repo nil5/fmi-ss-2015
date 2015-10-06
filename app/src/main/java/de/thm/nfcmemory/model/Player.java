@@ -9,9 +9,22 @@ public class Player {
 
     public final String name;
     public final int type;
+    private int points = 0;
 
     public Player(String name, int type) {
         this.name = name;
         this.type = type;
+    }
+
+    public void addPoints(int points){
+        this.points += points;
+    }
+
+    public void setPoints(int points){
+        this.points = points;
+    }
+
+    public int getPoints(){
+        return points;
     }
 }

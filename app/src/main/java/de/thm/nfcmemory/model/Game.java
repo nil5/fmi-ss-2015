@@ -55,15 +55,26 @@ public class Game {
         else return Player.CLIENT;
     }
 
-    public Player getPlayerFromType(int type){
-        if(type == Player.HOST) return host;
-        else if(type == Player.CLIENT) return client;
-        else return null;
+    public Player getPlayerFromType(int playerType){
+        if(playerType == Player.CLIENT) return client;
+        else if(playerType == Player.HOST) return host;
+        return null;
     }
 
-    public Player getOpponent(){
-        if(playerType == Player.HOST) return client;
-        else return host;
+    public int getPointsFromPlayerType(int playerType){
+        if(playerType == Player.HOST) return host.getPoints();
+        else if(playerType == Player.CLIENT) return client.getPoints();
+        return -1;
+    }
+
+    public void addPoints(int playerType, int points){
+        if(playerType == Player.HOST) host.addPoints(points);
+        else if(playerType == Player.CLIENT) client.addPoints(points);
+    }
+
+    public void setPoints(int playerType, int points){
+        if(playerType == Player.HOST) host.setPoints(points);
+        else if(playerType == Player.CLIENT) client.setPoints(points);
     }
 
     public int getOpponentType(){
