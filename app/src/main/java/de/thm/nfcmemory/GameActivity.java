@@ -38,13 +38,14 @@ import de.thm.nfcmemory.model.CardSet;
 import de.thm.nfcmemory.model.CardView;
 import de.thm.nfcmemory.model.Field;
 import de.thm.nfcmemory.model.Game;
+import de.thm.nfcmemory.model.MessageHandler;
 import de.thm.nfcmemory.model.Player;
 import de.thm.nfcmemory.model.Rules;
 import de.thm.nfcmemory.model.adapter.BluetoothDeviceListAdapter;
 import de.thm.nfcmemory.model.InGameMessage;
 
 
-public class GameActivity extends BluetoothActivity implements BluetoothDiscoveryListener, BluetoothConnectionStateListener, NFCActivity.NFCListener {
+public class GameActivity extends BluetoothActivity implements BluetoothDiscoveryListener, BluetoothConnectionStateListener, BluetoothMessageListener, View.OnClickListener, AdapterView.OnItemClickListener, NFCActivity.NFCListener {
     public static final String TAG = "GameActivity";
 
     private BluetoothDeviceListAdapter bluetoothDeviceListAdapter;
@@ -54,6 +55,8 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private RelativeLayout fieldLayout;
     private ListView bluetoothDeviceList;
     private TextView lobbyStatus;
+    private TextView lobbyHost;
+    private TextView lobbyClient;
     private Button startGame;
     private Button joinGame;
     private Button hostGame;
@@ -62,16 +65,15 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private ProgressBar joinGameProgress;
     private ProgressBar hostGameProgress;
 
-    private InGameMessage currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);;
+    private InGameMessage currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
+    private MessageHandler messageHandler = new MessageHandler();
     private CardView cardView;
     private Field field;
     private Game game;
+
     private int playerType;
     private String playerName;
-
-    private int messageReceivedCounter = 0;
     private boolean viewFlipped = false;
-    boolean fieldVisible = false;
     boolean fieldInitialized = false;
 
     @Override
@@ -93,99 +95,37 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
 
         // Lobby view elements
         lobbyStatus = (TextView) findViewById(R.id.game_lobby_status);
+        lobbyHost = (TextView) findViewById(R.id.game_versus_host);
+        lobbyClient = (TextView) findViewById(R.id.game_versus_client);
         joinGame = (Button) findViewById(R.id.game_join);
         joinGameProgress = (ProgressBar) findViewById(R.id.game_join_progress);
         hostGame = (Button) findViewById(R.id.game_host);
         hostGameProgress = (ProgressBar) findViewById(R.id.game_host_progress);
         startGame = (Button) findViewById(R.id.game_start);
+        bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
 
+        // Game view elements
         continueButton = (Button) findViewById(R.id.game_continue);
-        final TextView lobbyHost = (TextView) findViewById(R.id.game_versus_host);
-        final TextView lobbyClient = (TextView) findViewById(R.id.game_versus_client);
+        fieldLayout = (RelativeLayout) findViewById(R.id.game_field);
 
         // Prepare Bluetooth device list
-        final ArrayList<BluetoothDevice> bluetoothDevices = new ArrayList<>();
-        bluetoothDeviceListAdapter = new BluetoothDeviceListAdapter(this, bluetoothDevices);
-        bluetoothDeviceList = (ListView) findViewById(R.id.game_bluetooth_devices);
+        bluetoothDeviceListAdapter = new BluetoothDeviceListAdapter(this, new ArrayList<BluetoothDevice>());
         bluetoothDeviceList.setAdapter(bluetoothDeviceListAdapter);
-        bluetoothDeviceList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                selectedDevice = bluetoothDeviceListAdapter.get(position);
-
-                joinGame.setEnabled(false);
-                joinGameProgress.setVisibility(View.VISIBLE);
-                bluetoothDeviceList.setEnabled(false);
-                new BluetoothConnection(GameActivity.this, selectedDevice.getAddress()) {
-                    @Override
-                    public void onConnectionEstablished() {
-                    }
-
-                    @Override
-                    public void onConnectionError(String msg) {
-                        Toast.makeText(GameActivity.this, "Error while attempting to connect: " + msg, Toast.LENGTH_LONG).show();
-                    }
-
-                    @Override
-                    public void onDisconnect() {
-                    }
-                }.start();
-            }
-        });
+        bluetoothDeviceList.setOnItemClickListener(this);
 
         // Lobby functions
-        startGame.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (getState() != STATE_CONNECTED) {
-                    Toast.makeText(GameActivity.this, "Not connected to other device.", Toast.LENGTH_LONG).show();
-                } else if (game == null) {
-                    Toast.makeText(GameActivity.this, "Unable to start game. No game initialized.", Toast.LENGTH_LONG).show();
-                } else send(BluetoothMessage.START);
-            }
-        });
-
-        hostGame.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                serve("de.thm.nfcmemory", true);
-                makeDiscoverable();
-                bluetoothDeviceListAdapter.clear();
-                joinGame.setEnabled(false);
-                hostGame.setEnabled(false);
-                hostGameProgress.setVisibility(View.VISIBLE);
-                lobbyHost.setText(playerName);
-                playerType = Player.HOST;
-                lobbyStatus.setText("Waiting for client...");
-            }
-        });
-
-        joinGame.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                discover();
-                bluetoothDeviceListAdapter.clear();
-                joinGame.setEnabled(false);
-                hostGame.setEnabled(false);
-                joinGameProgress.setVisibility(View.VISIBLE);
-                lobbyClient.setText(playerName);
-                playerType = Player.CLIENT;
-                lobbyStatus.setText("Searching for nearby hosted games...");
-            }
-        });
-
+        startGame.setOnClickListener(this);
+        hostGame.setOnClickListener(this);
+        joinGame.setOnClickListener(this);
 
         // Field init
-        fieldLayout = (RelativeLayout) findViewById(R.id.game_field);
         field = new Field(cardSet, NFCMemory.Const.getScreen().width);
-        final int fieldSize = field.getSize();
 
-        // Test Game
-        game = new Game(new Player("P1", Player.HOST), new Player("P2", Player.CLIENT), playerType, Rules.getStandardRules(), field); // TODO: remove
+        // Game init
+        game = new Game(Rules.getStandardRules(), field); // TODO: select rules
 
-        // CardView
-        cardView = new CardView(getFragmentManager(), field);
         // CardView init
+        cardView = new CardView(getFragmentManager(), field);
         if(savedInstanceState == null)
             cardView.init(R.id.game_flip_card_left, R.id.game_flip_card_right);
 
@@ -196,115 +136,27 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         }
         addBluetoothDiscoveryListener(this);
         addBluetoothConnectionStateListener(this);
+        addBluetoothMessageListener(this);
 
         // NFC
         addNFCListener(this);
 
-        // Message handler
-        addBluetoothMessageListener(new BluetoothMessageListener() {
-            @Override
-            public void onMessageRecieved(Message msg) {
-                String m = (String) msg.obj;
-                Log.v(TAG, "Msg: " + m);
-
-                try {
-                    byte b = Byte.valueOf(m);
-                    // Message is Byte-Message
-                    if (b == BluetoothMessage.START && !viewFlipped) {
-                        flipper.showNext();
-                        viewFlipped = true;
-                        send(BluetoothMessage.START);
-                    } else
-                        Toast.makeText(GameActivity.this, "Invalid message code: " + b, Toast.LENGTH_LONG).show();
-                } catch (NumberFormatException e1) {
-                    // Message is String-Message
-                    final String s[] = m.split(":", 2);
-                    final String key = s[0];
-                    final String val;
-                    try {
-                        val = s[1].trim();
-                    } catch (IndexOutOfBoundsException e2) {
-                        Toast.makeText(GameActivity.this, "Invalid text message. Message must have pattern [key]: [value]", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    switch (key) {
-                        case "name":
-                            final Player player1, player2;
-                            if (playerType == Player.HOST) {
-                                lobbyClient.setText(val);
-                                player1 = new Player(playerName, Player.HOST);
-                                player2 = new Player(val, Player.CLIENT);
-                            } else if (playerType == Player.CLIENT) {
-                                lobbyHost.setText(val);
-                                player1 = new Player(val, Player.HOST);
-                                player2 = new Player(playerName, Player.CLIENT);
-                            } else {
-                                Toast.makeText(GameActivity.this, "Invalid player type: " + playerType, Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                            game = new Game(player1, player2, playerType, Rules.getStandardRules(), field);
-                            final String turn = game.getTurn().name;
-                            if(playerType == Player.HOST){
-                                send("firstTurn: " + game.getTurn().type);
-                                send("field: " + field.toString());
-                                setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
-                            }
-                            break;
-                        case "field":
-                            field.parse(val);
-                            field.print(GameActivity.this, fieldLayout);
-                            break;
-                        case "firstTurn":
-                            game.setTurn(Integer.valueOf(val));
-                            setTitle(game.getTurn().name + (game.getTurn().name.endsWith("s") ? "" : "s") + "' turn");
-                            break;
-                        case "game":
-                            Log.d(TAG, val);
-                            InGameMessage message = new InGameMessage(InGameMessage.TYPE_RECEIVED);
-                            message.setContent(val);
-                            if(message.getContent().has("yourTurn")){
-                                game.setTurn(playerType);
-                                setTitle(playerName + (playerName.endsWith("s") ? "" : "s") + "' turn");
-                                currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
-                                Toast.makeText(GameActivity.this, "It's your turn!", Toast.LENGTH_LONG).show();
-                            }
-                            if(message.getContent().has("disabled")){
-                                try {
-                                    JSONArray disabled = new JSONArray(message.getContent().getString("disabled"));
-                                    for(int i = 0; i < disabled.length(); i++){
-                                        field.disable(disabled.getInt(i));
-                                    }
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            if(message.getContent().has("finished")){
-                                Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
-                            }
-                            break;
-                        default:
-                            Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
-                    }
-                }
-            }
-        });
-
         // Game functions
         continueButton.setEnabled(false);
-        continueButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                cardView.reset();
-                continueButton.setEnabled(false);
-                field.resetHighlights();
-                Log.d(TAG, "Sending message: " + currentMessage.toString());
-                send(currentMessage.toString());
-            }
-        });
+        continueButton.setOnClickListener(this);
+
+        // Toggle field init
+        toggleField = (Button) findViewById(R.id.game_button_show_field);
+        toggleField.setOnClickListener(this);
 
         // Card flip listener
         final RelativeLayout leftCardContainer = (RelativeLayout) findViewById(R.id.game_flip_card_left);
         final RelativeLayout rightCardContainer = (RelativeLayout) findViewById(R.id.game_flip_card_right);
+
+        // Prepare messages
+        messageHandler.prepareMessage("name", playerName);
+        messageHandler.prepareMessage("firstTurn", String.valueOf(game.getTurn().type));
+        messageHandler.prepareMessage("field", field.toString());
 
         // Doesn't work with FragmentManager method popBackStack...
         /*leftCardContainer.setOnClickListener(new View.OnClickListener() {
@@ -323,21 +175,6 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                     cardView.flipCard(CardView.Card.RIGHT);
             }
         });*/
-
-        // Toggle field init
-        toggleField = (Button) findViewById(R.id.game_button_show_field);
-        toggleField.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (fieldLayout.getVisibility() != View.VISIBLE) {
-                    fieldLayout.setVisibility(View.VISIBLE);
-                    toggleField.setText("Hide field");
-                } else {
-                    fieldLayout.setVisibility(View.GONE);
-                    toggleField.setText("Show field");
-                }
-            }
-        });
     }
 
     @Override
@@ -366,16 +203,17 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     protected void onStop() {
         super.onStop();
         Log.v(TAG, "onStop");
-        disconnect();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         Log.v(TAG, "onDestroy");
+        disconnect();
         removeNFCListener(this);
         removeBluetoothDiscoveryListener(this);
         removeBluetoothConnectionStateListener(this);
+        removeBluetoothMessageListener(this);
     }
 
     @Override
@@ -417,7 +255,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                         GameActivity.super.onBackPressed();
                     }
                 }).setNegativeButton("No", null)
-                .setNeutralButton("Cancel", null);
+                .setNeutralButton("Cancel", null).show();
         else super.onBackPressed();
     }
 
@@ -463,7 +301,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
             hostGameProgress.setVisibility(View.INVISIBLE);
             joinGameProgress.setVisibility(View.INVISIBLE);
             lobbyStatus.setText("Connected. Let's go!");
-            send("name: " + playerName);
+            send(messageHandler.requestMessage("name"));
         } else if(oldState == STATE_SERVE){
             hostGame.setEnabled(true);
             joinGame.setEnabled(true);
@@ -496,8 +334,6 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                         if(flippedCard != null) field.highlight(index);
                                         if(flippedCard == CardView.Card.RIGHT) {
                                             continueButton.setEnabled(true);
-                                            currentMessage.getContent().put("yourTurn", true);
-                                            setTitle(game.getOpponent().name);
 
                                             final boolean match = CardView.Card.isMatch();
                                             if (match) {
@@ -513,6 +349,11 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                             }
                                             if(!match || !game.getRules().hasFlag(Rules.AGAIN_ON_SCORE)){
                                                 game.setTurn(game.getOpponentType());
+
+                                                final String turn = game.getTurn().name;
+
+                                                currentMessage.getContent().put("yourTurn", true);
+                                                setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
                                             }
                                         }
                                     } else Toast.makeText(this, "The card is already out of the game.", Toast.LENGTH_LONG).show();
@@ -546,5 +387,181 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     @Override
     public void onWriteSuccess() {
 
+    }
+
+    @Override
+    public void onMessageRecieved(Message msg) {
+        String m = (String) msg.obj;
+        Log.v(TAG, "Msg: " + m);
+
+        try {
+            byte b = Byte.valueOf(m);
+            // Message is Byte-Message
+            if (b == BluetoothMessage.START && !viewFlipped) {
+                flipper.showNext();
+                viewFlipped = true;
+                send(BluetoothMessage.START);
+            } else
+                Toast.makeText(GameActivity.this, "Invalid message code: " + b, Toast.LENGTH_LONG).show();
+        } catch (NumberFormatException e1) {
+            // Message is String-Message
+            final String messages[] = messageHandler.split(m);
+
+            for(int i = 0; i < messages.length; i++) {
+                final String s[] = messages[i].split(":", 2);
+                final String key = s[0];
+                final String val;
+                try {
+                    val = s[1].trim();
+                } catch (IndexOutOfBoundsException e2) {
+                    Log.e(TAG, "Invalid text message. Message must have pattern [key]: [value]");
+                    return;
+                }
+                switch (key) {
+                    case "name":
+                        final Player player1, player2;
+                        if (playerType == Player.HOST) {
+                            Log.v(TAG, "Player is host, Opponent is client.");
+                            lobbyClient.setText(val);
+                            player1 = new Player(playerName, Player.HOST);
+                            player2 = new Player(val, Player.CLIENT);
+                        } else if (playerType == Player.CLIENT) {
+                            Log.v(TAG, "Player is client, Opponent is host.");
+                            lobbyHost.setText(val);
+                            player1 = new Player(val, Player.HOST);
+                            player2 = new Player(playerName, Player.CLIENT);
+                        } else {
+                            Toast.makeText(GameActivity.this, "Invalid player type: " + playerType, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        game.setHost(player1);
+                        game.setClient(player2);
+                        game.setPlayerType(playerType);
+
+                        if (playerType == Player.HOST) {
+                            final String turn = game.getTurn().name;
+
+                            send(messageHandler.combine(new String[]{
+                                    messageHandler.requestMessage("firstTurn"),
+                                    messageHandler.requestMessage("field")
+                            }));
+                            setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
+                        }
+                        break;
+                    case "field":
+                        field.parse(val);
+                        field.print(GameActivity.this, fieldLayout);
+                        break;
+                    case "firstTurn":
+                        game.setTurn(Integer.valueOf(val));
+                        setTitle(game.getTurn().name + (game.getTurn().name.endsWith("s") ? "" : "s") + "' turn");
+                        break;
+                    case "game":
+                        Log.d(TAG, val);
+                        InGameMessage message = new InGameMessage(InGameMessage.TYPE_RECEIVED);
+                        message.setContent(val);
+                        if (message.getContent().has("yourTurn")) {
+                            game.setTurn(playerType);
+                            setTitle(playerName + (playerName.endsWith("s") ? "" : "s") + "' turn");
+                            currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
+                            Toast.makeText(GameActivity.this, "It's your turn!", Toast.LENGTH_LONG).show();
+                        }
+                        if (message.getContent().has("disabled")) {
+                            try {
+                                JSONArray disabled = new JSONArray(message.getContent().getString("disabled"));
+                                for (int j = 0; j < disabled.length(); j++) {
+                                    field.disable(disabled.getInt(j));
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        if (message.getContent().has("finished")) {
+                            Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
+                        }
+                        break;
+                    default:
+                        Toast.makeText(GameActivity.this, "Invalid message key: " + key, Toast.LENGTH_LONG).show();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()){
+            case R.id.game_start:
+                if (getState() != STATE_CONNECTED) {
+                    Toast.makeText(GameActivity.this, "Not connected to other device.", Toast.LENGTH_LONG).show();
+                } else if (game == null) {
+                    Toast.makeText(GameActivity.this, "Unable to start game. No game initialized.", Toast.LENGTH_LONG).show();
+                } else send(BluetoothMessage.START);
+                break;
+            case R.id.game_host:
+                playerType = Player.HOST;
+
+                serve("de.thm.nfcmemory", true);
+                makeDiscoverable();
+
+                bluetoothDeviceListAdapter.clear();
+                joinGame.setEnabled(false);
+                hostGame.setEnabled(false);
+                hostGameProgress.setVisibility(View.VISIBLE);
+                lobbyHost.setText(playerName);
+                lobbyClient.setText("Client");
+                lobbyStatus.setText("Waiting for client...");
+                break;
+            case R.id.game_join:
+                playerType = Player.CLIENT;
+
+                discover();
+
+                bluetoothDeviceListAdapter.clear();
+                joinGame.setEnabled(false);
+                hostGame.setEnabled(false);
+                joinGameProgress.setVisibility(View.VISIBLE);
+                lobbyHost.setText("Host");
+                lobbyClient.setText(playerName);
+                lobbyStatus.setText("Searching for nearby hosted games...");
+                break;
+            case R.id.game_continue:
+                cardView.reset();
+                continueButton.setEnabled(false);
+                field.resetHighlights();
+                Log.d(TAG, "Sending message: " + currentMessage.toString());
+                send(currentMessage.toString());
+                break;
+            case R.id.game_button_show_field:
+                if (fieldLayout.getVisibility() != View.VISIBLE) {
+                    fieldLayout.setVisibility(View.VISIBLE);
+                    toggleField.setText("Hide field");
+                } else {
+                    fieldLayout.setVisibility(View.GONE);
+                    toggleField.setText("Show field");
+                }
+        }
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        selectedDevice = bluetoothDeviceListAdapter.get(position);
+
+        joinGame.setEnabled(false);
+        joinGameProgress.setVisibility(View.VISIBLE);
+        bluetoothDeviceList.setEnabled(false);
+        new BluetoothConnection(GameActivity.this, selectedDevice.getAddress()) {
+            @Override
+            public void onConnectionEstablished() {
+            }
+
+            @Override
+            public void onConnectionError(String msg) {
+                Toast.makeText(GameActivity.this, "Error while attempting to connect: " + msg, Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onDisconnect() {
+            }
+        }.start();
     }
 }

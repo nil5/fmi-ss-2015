@@ -379,7 +379,7 @@ public class BluetoothActivity extends NFCActivity implements ThreadStateListene
 	
 	public boolean send(byte b){ return send(Byte.toString(b)); }
 	public boolean send(String s){
-		if(!bluetoothSupport || !bluetoothEnabled()) return false;
+		if(!bluetoothSupport || !bluetoothEnabled() || s == null) return false;
 		
 		if(state != STATE_CONNECTED) return false;
 		
