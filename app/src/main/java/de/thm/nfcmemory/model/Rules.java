@@ -35,4 +35,11 @@ public class Rules {
         return new Rules()
                 .addFlag(AGAIN_ON_SCORE);
     }
+
+    public static Rules getStrategicRules(){
+        return new Rules()
+                .addFlag(AGAIN_ON_SCORE)
+                .addFlag(SECRET_DRAW)
+                .addFlag(ALLOW_SWAPPING);
+    }
 }

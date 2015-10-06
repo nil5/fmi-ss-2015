@@ -52,9 +52,7 @@
             android:layout_height="wrap_content"
             android:background="@mipmap/button_start"
             android:layout_gravity="center"
-            android:id="@+id/button_startGame"
-            android:enabled="false"
-            android:gravity="clip_horizontal"
+            android:id="@+id/button_start_game"
             android:layout_marginTop="20dp" />
     </LinearLayout>
 </LinearLayout>

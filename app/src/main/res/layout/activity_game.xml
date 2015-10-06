@@ -224,6 +224,14 @@
             <Button
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:id="@+id/game_reveal_swap"
+                android:layout_below="@id/game_flip_card_left"
+                android:visibility="gone"
+                android:text="Reveal / Swap" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:id="@+id/game_button_show_field"
                 android:layout_alignParentBottom="true"
                 android:text="Show field"

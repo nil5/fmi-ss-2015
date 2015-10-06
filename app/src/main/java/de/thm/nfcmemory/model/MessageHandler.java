@@ -73,6 +73,11 @@ public class MessageHandler {
         return s;
     }
 
+    public void reset(){
+        requestedUniqueKeys.clear();
+        Key.reset();
+    }
+
     private enum Key{
         Name("name", true),
         FirstTurn("firstTurn", true),
@@ -89,10 +94,17 @@ public class MessageHandler {
             this.unique = unique;
         }
 
-        public static Key findByName(String name){
+        private static Key findByName(String name){
             for(Key v : values())
                 if (v.name.equals(name)) return v;
             return null;
+        }
+
+        private static void reset(){
+            for(Key v : values()) {
+                v.preparedMessage = null;
+                v.counter = 0;
+            }
         }
     }
 }

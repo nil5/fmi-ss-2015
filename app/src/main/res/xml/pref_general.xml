@@ -27,5 +27,13 @@
         android:defaultValue="default"
         android:negativeButtonText="@null"
         android:positiveButtonText="@null" />
+    <ListPreference
+        android:key="game_mode"
+        android:title="@string/pref_game_mode_title"
+        android:defaultValue="Standard"
+        android:entryValues="@array/pref_game_modes"
+        android:entries="@array/pref_game_modes"
+        android:negativeButtonText="@null"
+        android:positiveButtonText="@null" />
 
 </PreferenceScreen>

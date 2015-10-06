@@ -66,6 +66,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private Button hostGame;
     private Button toggleField;
     private Button continueButton;
+    private Button revealSwap;
     private ProgressBar joinGameProgress;
     private ProgressBar hostGameProgress;
 
@@ -78,7 +79,8 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
     private int playerType;
     private String playerName;
     private boolean viewFlipped = false;
-    boolean fieldInitialized = false;
+    private boolean fieldInitialized = false;
+    private boolean swappingMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,6 +116,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         resultClientName = (TextView) findViewById(R.id.game_result_client_name);
         resultClient = (TextView) findViewById(R.id.game_result_client);
         continueButton = (Button) findViewById(R.id.game_continue);
+        revealSwap = (Button) findViewById(R.id.game_reveal_swap);
         fieldLayout = (RelativeLayout) findViewById(R.id.game_field);
 
         // Prepare Bluetooth device list
@@ -130,7 +133,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         field = new Field(cardSet, NFCMemory.Const.getScreen().width);
 
         // Game init
-        game = new Game(Rules.getStandardRules(), field); // TODO: select rules
+        game = new Game(app.getTemp().getRules(), field); // TODO: select rules
 
         // CardView init
         cardView = new CardView(getFragmentManager(), field);
@@ -152,6 +155,14 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         // Game functions
         continueButton.setEnabled(false);
         continueButton.setOnClickListener(this);
+        revealSwap.setOnClickListener(this);
+        if(game.getRules().hasFlag(Rules.SECRET_DRAW)){
+            revealSwap.setVisibility(View.VISIBLE);
+            revealSwap.setEnabled(false);
+            if(!game.getRules().hasFlag(Rules.ALLOW_SWAPPING)){
+                revealSwap.setText("Reveal");
+            }
+        }
         refreshResult(true);
 
         // Toggle field init
@@ -223,6 +234,7 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         removeBluetoothDiscoveryListener(this);
         removeBluetoothConnectionStateListener(this);
         removeBluetoothMessageListener(this);
+        messageHandler.reset();
     }
 
     @Override
@@ -339,33 +351,31 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                 } else if(field.getCard(index).active && index != cardView.getIndex(CardView.Card.LEFT)
                                         && index != cardView.getIndex(CardView.Card.RIGHT)) {
                                     if(!field.isDisabled(index)) {
-                                        final CardView.Card flippedCard = cardView.flipCard(index);
-                                        if(flippedCard != null) field.highlight(index);
+                                        final boolean hidden = game.getRules().hasFlag(Rules.SECRET_DRAW);
+                                        final CardView.Card flippedCard = cardView.flipCard(index, hidden);
+                                        if(flippedCard != null){
+                                            field.highlight(index);
+                                            if(hidden) revealSwap.setEnabled(true);
+                                        }
                                         if(flippedCard == CardView.Card.RIGHT) {
-                                            continueButton.setEnabled(true);
+                                            if(!hidden) continueButton.setEnabled(true);
 
-                                            final boolean match = CardView.Card.isMatch();
-                                            if (match) {
-                                                Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
-                                                game.addPoints(playerType, 1);
-                                                field.disable(cardView.getIndex(CardView.Card.LEFT));
-                                                field.disable(cardView.getIndex(CardView.Card.RIGHT));
-                                                currentMessage.getContent().put("disabled", field.getDisabled());
-                                                currentMessage.getContent().put("points", game.getPointsFromPlayerType(playerType));
-                                                refreshResult();
-
-                                                if(field.countRemaining() < 1){
-                                                    currentMessage.getContent().put("finished", true);
-                                                    Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
-                                                }
-                                            }
-                                            if(!match || !game.getRules().hasFlag(Rules.AGAIN_ON_SCORE)){
+                                            if(swappingMode){
+                                                final int index1 = cardView.getIndex(CardView.Card.RIGHT);
+                                                final int index2 = cardView.getIndex(CardView.Card.LEFT);
+                                                field.swap(index1, index2);
+                                                field.print(this, fieldLayout);
+                                                currentMessage.getContent().put("swap", index1 + "," + index2);
                                                 game.setTurn(game.getOpponentType());
-
-                                                final String turn = game.getTurn().name;
-
-                                                currentMessage.getContent().put("yourTurn", true);
-                                                setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
+                                            } else {
+                                                final boolean match = checkMatch(!hidden);
+                                                if (match) {
+                                                    Log.i(TAG, "Match! Value: " + CardView.Card.LEFT.getCard().value);
+                                                }
+                                                if (!match || !game.getRules().hasFlag(Rules.AGAIN_ON_SCORE)) {
+                                                    game.setTurn(game.getOpponentType());
+                                                    if(!hidden) onPlayerChange();
+                                                }
                                             }
                                         }
                                     } else Toast.makeText(this, "The card is already out of the game.", Toast.LENGTH_LONG).show();
@@ -413,6 +423,22 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                 flipper.showNext();
                 viewFlipped = true;
                 send(BluetoothMessage.START);
+                if(game.getRules().hasFlag(Rules.ALLOW_SWAPPING) && game.getTurn().type == playerType){
+                    new AlertDialog.Builder(this)
+                            .setTitle("It's up to you!")
+                            .setMessage("Would you like to reveal or swap cards?")
+                            .setPositiveButton("Reveal", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    swappingMode = false;
+                                }
+                            }).setNegativeButton("Swap", new DialogInterface.OnClickListener() {
+                            @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    swappingMode = true;
+                                }
+                            }).show();
+                }
             } else
                 Toast.makeText(GameActivity.this, "Invalid message code: " + b, Toast.LENGTH_LONG).show();
         } catch (NumberFormatException e1) {
@@ -477,6 +503,22 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                             setTitle(playerName + (playerName.endsWith("s") ? "" : "s") + "' turn");
                             currentMessage = new InGameMessage(InGameMessage.TYPE_SENT);
                             Toast.makeText(GameActivity.this, "It's your turn!", Toast.LENGTH_LONG).show();
+                            if(game.getRules().hasFlag(Rules.ALLOW_SWAPPING)){
+                                new AlertDialog.Builder(this)
+                                        .setTitle("It's up to you!")
+                                        .setMessage("Would you like to reveal or swap cards?")
+                                        .setPositiveButton("Reveal", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                swappingMode = false;
+                                            }
+                                        }).setNegativeButton("Swap", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                swappingMode = true;
+                                            }
+                                        }).show();
+                            }
                         }
                         if (message.getContent().has("disabled")) {
                             try {
@@ -497,6 +539,17 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                                 refreshResult();
                             } catch (JSONException e) {
                                 Log.e(TAG, "Could not add points.");
+                                e.printStackTrace();
+                            }
+                        }
+                        if(message.getContent().has("swap")){
+                            try {
+                                final String swap = message.getContent().getString("swap");
+                                final String partner[] = swap.split(",");
+                                field.swap(Integer.valueOf(partner[0]), Integer.valueOf(partner[1]));
+                                field.print(this, fieldLayout);
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Could not swap.");
                                 e.printStackTrace();
                             }
                         }
@@ -551,6 +604,22 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                 field.resetHighlights();
                 Log.d(TAG, "Sending message: " + currentMessage.toString());
                 send(currentMessage.toString());
+                if(game.getTurn().type == playerType && game.getRules().hasFlag(Rules.ALLOW_SWAPPING)){
+                    new AlertDialog.Builder(this)
+                            .setTitle("It's up to you!")
+                            .setMessage("Would you like to reveal or swap cards?")
+                            .setPositiveButton("Reveal", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    swappingMode = false;
+                                }
+                            }).setNegativeButton("Swap", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                                    swappingMode = true;
+                                }
+                            }).show();
+                }
                 break;
             case R.id.game_button_show_field:
                 if (fieldLayout.getVisibility() != View.VISIBLE) {
@@ -560,6 +629,33 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
                     fieldLayout.setVisibility(View.GONE);
                     toggleField.setText("Show field");
                 }
+                break;
+            case R.id.game_reveal_swap:
+                boolean match = false;
+                if(swappingMode){
+                    Toast.makeText(this, "Cards swapped!", Toast.LENGTH_SHORT).show();
+                } else {
+                    if(revealSwap.getText().equals("Hide")){
+                        cardView.hideCard(CardView.Card.LEFT);
+                        revealSwap.setText("Reveal / Swap");
+                        if(cardView.getIndex(CardView.Card.RIGHT) == -1)
+                            revealSwap.setEnabled(false);
+                        return;
+                    }
+
+                    cardView.showCard(CardView.Card.LEFT);
+
+                    if(cardView.getIndex(CardView.Card.RIGHT) == -1){
+                        revealSwap.setText("Hide");
+                        return;
+                    }
+                    cardView.showCard(CardView.Card.RIGHT);
+                    match = checkMatch(true);
+                }
+                if(!match || !game.getRules().hasFlag(Rules.AGAIN_ON_SCORE))
+                    onPlayerChange();
+                revealSwap.setEnabled(false);
+                continueButton.setEnabled(true);
         }
     }
 
@@ -596,5 +692,43 @@ public class GameActivity extends BluetoothActivity implements BluetoothDiscover
         }
         resultClient.setText(game.getPointsFromPlayerType(Player.CLIENT) + "");
         resultHost.setText(game.getPointsFromPlayerType(Player.HOST) + "");
+    }
+
+    private boolean checkMatch(){
+        return checkMatch(false);
+    }
+    private boolean checkMatch(boolean executeCallback){
+        final boolean match = CardView.Card.isMatch();
+        if(match && executeCallback) onMatch();
+        return match;
+    }
+
+    private void onMatch(){
+        game.addPoints(playerType, 1);
+        field.disable(cardView.getIndex(CardView.Card.LEFT));
+        field.disable(cardView.getIndex(CardView.Card.RIGHT));
+        try {
+            currentMessage.getContent().put("disabled", field.getDisabled());
+            currentMessage.getContent().put("points", game.getPointsFromPlayerType(playerType));
+            refreshResult();
+
+            if (field.countRemaining() < 1) {
+                currentMessage.getContent().put("finished", true);
+                Toast.makeText(GameActivity.this, "Game finished", Toast.LENGTH_LONG).show();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void onPlayerChange(){
+        final String turn = game.getTurn().name;
+
+        try {
+            currentMessage.getContent().put("yourTurn", true);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        setTitle(turn + (turn.endsWith("s") ? "" : "s") + "' turn");
     }
 }

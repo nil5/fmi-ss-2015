@@ -13,6 +13,7 @@ import java.io.FileNotFoundException;
 
 import de.thm.nfcmemory.model.CardSet;
 import de.thm.nfcmemory.model.Player;
+import de.thm.nfcmemory.model.Rules;
 
 public class NFCMemory extends Application implements SharedPreferences.OnSharedPreferenceChangeListener {
 	private static final String TAG = "NFCMemory";
@@ -55,6 +56,10 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 		temporary.playerName = prefs.getString(PREF_PLAYER_NAME, "Player");
 		if(D) Log.v(TAG, "Temporary Player: '" + temporary.playerName + "'");
 		final String cardSet = defaultPrefs.getString(SettingsActivity.KEY_PREFS_CARD_SET, "default");
+		final String gameMode = defaultPrefs.getString(SettingsActivity.KEY_PREFS_GAME_MODE, "Standard");
+		if(D) Log.v(TAG, "Temporary Rules: '" + gameMode + "'");
+		if(gameMode.equals("Strategy")) temporary.rules = Rules.getStrategicRules();
+		else temporary.rules = Rules.getStandardRules();
 		try {
 			temporary.cardSet = new CardSet(cardSet);
 			if(D) Log.v(TAG,"Temporary CardSet ID: '" + temporary.cardSet.name + "'");
@@ -83,6 +88,10 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 					e.printStackTrace();
 				}
 				break;
+			case SettingsActivity.KEY_PREFS_GAME_MODE:
+				final String gameMode = defaultPrefs.getString(key, "Standard");
+				temporary.setRules(gameMode.equals("Strategy")
+						? Rules.getStrategicRules() : Rules.getStandardRules());
 		}
 	}
 
@@ -98,6 +107,7 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 	public class Temp{
 		private CardSet cardSet;
 		private String playerName;
+		private Rules rules;
 
 		public CardSet getCardSet(){ return cardSet; }
 		protected void setCardSet(CardSet cardSet){
@@ -116,6 +126,12 @@ public class NFCMemory extends Application implements SharedPreferences.OnShared
 				Log.v(TAG, success ? "Shared preferences updated: "
 						+ PREF_PLAYER_NAME + " = " + playerName : "Shared preferences NOT updated.");
 			}
+		}
+
+		protected Rules getRules(){ return rules; }
+		protected void setRules(Rules rules){
+			this.rules = rules;
+			Log.d(TAG, "New rules activated. Shared preferences handled by SettingsActivity...");
 		}
 	}
 

@@ -45,7 +45,15 @@ public class CardView {
                 .commit();
     }
 
-    public Card flipCard(int index){
+    public void showCard(Card card){
+        if(!card.visible) card.flip(card.index);
+    }
+
+    public void hideCard(Card card){
+        if(card.visible) card.flip(card.index);
+    }
+
+    public Card flipCard(int index, boolean hidden){
         if((flipCounter + 1) % 3 == 0){
             Log.w(TAG, "Could not flip card. Only 2 cards can be flipped per turn.");
             return null;
@@ -54,10 +62,18 @@ public class CardView {
         Log.d(TAG, "flipCounter: " + flipCounter);
         switch(flipCounter % 3){
             case 1:
-                Card.LEFT.flip(index);
+                if(!hidden) Card.LEFT.flip(index);
+                else{
+                    Card.LEFT.index = index;
+                    Card.LEFT.cardFront.setImage(field.getCard(index).getSrc());
+                }
                 return Card.LEFT;
             case 2:
-                Card.RIGHT.flip(index);
+                if(!hidden) Card.RIGHT.flip(index);
+                else{
+                    Card.RIGHT.index = index;
+                    Card.RIGHT.cardFront.setImage(field.getCard(index).getSrc());
+                }
                 return Card.RIGHT;
             default:
                 return null;
@@ -67,12 +83,10 @@ public class CardView {
 
     public void reset(){
         flipCounter++;
-        Card.LEFT.flip(-1);
-        Card.RIGHT.flip(-1);
-    }
-
-    public void flipCard(Card card){
-        card.flip(card.index);
+        if(Card.LEFT.visible) Card.LEFT.flip(-1);
+        else Card.LEFT.index = -1;
+        if(Card.RIGHT.visible) Card.RIGHT.flip(-1);
+        else Card.RIGHT.index = -1;
     }
 
     public int getIndex(){
@@ -110,6 +124,7 @@ public class CardView {
 
         public static boolean isMatch(){
             if(LEFT.index == -1 || RIGHT.index == -1) return false;
+            Log.v(TAG, "Check match: " + LEFT.getCard().value + " == " + RIGHT.getCard().value);
             return LEFT.getCard().value == RIGHT.getCard().value;
         }
 

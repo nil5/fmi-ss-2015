@@ -102,6 +102,11 @@ public class Field {
             card.setBackgroundColor(Color.WHITE);
             container.addView(card);
             views[i] = card;
+
+            if(highlighted.contains(i))
+                highlight(i);
+            if(disabled.contains(i))
+                disable(i);
         }
     }
 
@@ -113,6 +118,7 @@ public class Field {
     public void resetHighlights(){
         for(int i = highlighted.size() - 1; i >= 0; i--){
             final int index = highlighted.get(i);
+            highlighted.remove(i);
             if(getCard(index).active) setCardColor(index, "#FFFFFF");
         }
     }
@@ -139,6 +145,16 @@ public class Field {
     public Card getCard(int index){
         if(views == null || index < 0 || index >= cards.length) return null;
         return cards[index];
+    }
+
+    public void swap(int index1, int index2){
+        if(index1 < 0 || index2 < 0 || index1 >= size || index2 >= size) return;
+        Card temp = cards[index1];
+        cards[index1] = cards[index2];
+        cards[index2] = temp;
+        TextView view = views[index1];
+        views[index1] = views[index2];
+        views[index2] = view;
     }
 
     public int countRemaining(){
